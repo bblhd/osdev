@@ -98,7 +98,7 @@ if [ -n FINISH_MODE ]; then
 		echo -ne "\033[91m[making iso]\033[0m $ISONAME is up to date\n"
 	fi
 	
-	if [ "$FINISH_MODE" == /dev/* ]; then
+	if [[ "$FINISH_MODE" == /dev/* ]]; then
 		echo -ne "\033[93m[writing device]\033[0m $ISONAME -> $FINISH_MODE\n"
 		sudo dd if=$ISONAME of=$FINISH_MODE status=progress && sync
 	elif [ "$FINISH_MODE" == "qemu" ]; then

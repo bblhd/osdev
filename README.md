@@ -13,7 +13,7 @@ You may wonder why I didn't just use make.
 
 Building
 ---
-Build the kernel and "install" it using the build.sh script like so. 
+Build the kernel and "install" it using the build.sh script like so.
 
 `
 ./build.sh <target format>
@@ -31,6 +31,7 @@ Requirements
 ---
 * i686-elf-gcc
 * grub-mkrescue
+* dd, other normal utilities
 
 Thanks
 ---
