@@ -3,7 +3,7 @@ osdev
 
 What
 ---
-This is my operating system, its not very good yet, but I am trying to fix that. 
+This is my personal hobbyist operating system, its not very good yet, but I am trying to fix that. 
 
 It might be a bit silly and idiosyncratic sometimes. 
 
