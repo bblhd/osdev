@@ -98,9 +98,9 @@ if [ -n FINISH_MODE ]; then
 		echo -ne "\033[91m[making iso]\033[0m $ISONAME is up to date\n"
 	fi
 	
-	if [ "$FINISH_MODE" == "usb" ]; then
-		echo -ne "\033[93m[writing usb]\033[0m $ISONAME -> /dev/sda\n"
-		sudo dd if=$ISONAME of=/dev/sda status=progress && sync
+	if [ "$FINISH_MODE" == /dev/* ]; then
+		echo -ne "\033[93m[writing device]\033[0m $ISONAME -> $FINISH_MODE\n"
+		sudo dd if=$ISONAME of=$FINISH_MODE status=progress && sync
 	elif [ "$FINISH_MODE" == "qemu" ]; then
 		echo -ne "\033[93m[qemu]\033[0m cdrom $ISONAME\n"
 		qemu-system-i386 -cdrom "$ISONAME"
