@@ -23,7 +23,7 @@ Replace `<target format>` with either `iso`, `qemu`, or the device file name.
 `iso` will only make the iso file, wheras `qemu` will also run it in qemu.
 If you use a device file, it will use dd to write the iso to the specified device.
 
-It is recomended to delete the build file every so often, especially after changing header files,
+It is recomended to clear the build folder every so often, especially after changing header files,
 as the build script currently doesn't account for changed header files.
 The build script also doesn't delete anything itself.
 
@@ -32,6 +32,10 @@ Requirements
 * i686-elf-gcc
 * grub-mkrescue
 * dd, other normal utilities
+
+Todo
+---
+[ ] improve all the lazy important code (kernel code should be efficient)
 
 Thanks
 ---

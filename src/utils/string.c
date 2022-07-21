@@ -21,12 +21,12 @@ void *memcpyw(uint16_t* restrict dest, const uint16_t* restrict src, size_t n) {
     return dest;
 }
 
-void *memcpy(void *restrict dest, const void *restrict src, size_t n) {
+void *memcpy(void *dest, const void *src, size_t n) {
     uint8_t *d = dest;
     const uint8_t *s = src;
 
     while(n--){
-        *d++=*s++;
+        *d++ = *s++;
     }
 
     return dest;

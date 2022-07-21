@@ -18,7 +18,9 @@ static uint8_t idle_thread_stack[IDLE_STACK_SIZE_BYTES];
 static uint8_t app_stack[APP_STACK_SIZE];
 
 int mod(int x, int y) {
-	return (x<0 ? y : 0) + x % y;
+	while (x < 0) x += y;
+	while (x >= y) x -= y;
+	return x;
 }
 
 int x86_pc_init(void) {
@@ -71,8 +73,9 @@ void test_print(struct VGA_Target *target) {
 
 struct multiboot_info multibootStorage;
 
-char commandMemory[20][80];
-unsigned int commandMemory_head = 0;
+#define COMMANDMEM_LENGTH 20
+char commandMemory[COMMANDMEM_LENGTH][80];
+int commandMemory_head = 0;
 
 void kernel_main(multiboot_info_t* mbd, unsigned int magic) {
 	
@@ -112,6 +115,7 @@ void kernel_main(multiboot_info_t* mbd, unsigned int magic) {
     print("type commands in the prompt below.\n\n");
 
     while (1) {
+		int historyCursor = commandMemory_head;
 		char commandbuff[80];
 		int commandcursor = 0;
 		commandbuff[commandcursor] = '\0';
@@ -123,14 +127,35 @@ void kernel_main(multiboot_info_t* mbd, unsigned int magic) {
 				uint8_t scancode = keyboard_get();
 				keycode = keycodeFromScancode(scancode);
 				
-				if (keyboard_modifier(MODIFIER_SHIFT) || keyboard_modifier(MODIFIER_CAPS)) {
-					keycode = keyboard_getCapital(keycode);
-				}
-				
-				if (keycode == 0x08 && commandcursor > 0) {
+				if (scancode == us_scancode_directory[SCANCODED_UP]) {
+					if (mod(historyCursor - 1, COMMANDMEM_LENGTH) != commandMemory_head) {
+						historyCursor = mod(historyCursor - 1, COMMANDMEM_LENGTH);
+						for (int i = 0; i < strlen(commandbuff)+1; i++) {
+							ktao_print(&mainTarget, "\b \b");
+						}
+						memcpy(commandbuff,commandMemory[historyCursor],80);
+						ktao_print(&mainTarget, commandbuff);
+						ktao_print(&mainTarget, "\ei_\ei\b");
+						commandcursor = strlen(commandbuff);
+					}
+				} else if (scancode == us_scancode_directory[SCANCODED_DOWN]) {
+					if (historyCursor != commandMemory_head) {
+						historyCursor = mod(historyCursor + 1, COMMANDMEM_LENGTH);
+						for (int i = 0; i < strlen(commandbuff)+1; i++) {
+							ktao_print(&mainTarget, "\b \b");
+						}
+						memcpy(commandbuff,commandMemory[historyCursor],80);
+						ktao_print(&mainTarget, commandbuff);
+						ktao_print(&mainTarget, "\ei_\ei\b");
+						commandcursor = strlen(commandbuff);
+					}
+				} else if (keycode == 0x08 && commandcursor > 0) {
 					ktao_print(&mainTarget, "\b\ei_\ei \b\b");
 					commandcursor--;
 				} else if (keycode != '\n' && keycode != 0x08 && keycode != 0x00 && mainTarget.column < mainTarget.width-1) {
+					if (keyboard_modifier(MODIFIER_SHIFT) || keyboard_modifier(MODIFIER_CAPS)) {
+						keycode = keyboard_getCapital(keycode);
+					}
 					ktao_putGlyph(&mainTarget, keycode);
 					ktao_print(&mainTarget, "\ei_\ei\b");
 					commandbuff[commandcursor++] = keycode;
@@ -138,6 +163,10 @@ void kernel_main(multiboot_info_t* mbd, unsigned int magic) {
 				commandbuff[commandcursor] = '\0';
 			}
 		} while (keycode != '\n');
+		
+		memcpy(commandMemory[commandMemory_head], commandbuff, 80);
+		commandMemory_head = mod(commandMemory_head + 1, COMMANDMEM_LENGTH);
+		commandMemory[commandMemory_head][0] = '\0';
 		
 		ktao_putGlyph(&mainTarget, 0);
 		ktao_newline(&mainTarget);
@@ -192,9 +221,6 @@ void kernel_main(multiboot_info_t* mbd, unsigned int magic) {
 		} else {
 			ktao_println(&mainTarget, "Not a valid command, try help");
 		}
-		
-		memcpy(commandMemory[commandMemory_head], commandbuff, 80);
-		commandMemory_head=mod(commandMemory_head + 1, 20);
 	}
 
 failure:  
