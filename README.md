@@ -1,8 +1,6 @@
 osdev
 ===
 
-What
----
 This is my personal hobbyist operating system, its not very good yet, but I am trying to fix that. 
 
 It might be a bit silly and idiosyncratic sometimes. 
@@ -27,7 +25,7 @@ If you use a device file (for example `/dev/sdb`), it will use dd to write the i
 
 It is recomended to clear the build folder every so often, especially after changing header files,
 as the build script currently doesn't account for changed header files.
-The build script also doesn't delete anything itself. I intend to fix both of these things
+The build script also doesn't delete anything itself. I intend to fix both of these things.
 
 Requirements
 ---
@@ -37,7 +35,7 @@ Requirements
 
 Todo
 ---
-[ ] improve all the lazy important code (kernel code should be efficient)
+* [ ] improve all my lazily written important kernel code
 
 Thanks
 ---
