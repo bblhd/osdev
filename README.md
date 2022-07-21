@@ -5,8 +5,8 @@ This is my personal hobbyist operating system, its not very good yet, but I am t
 
 It might be a bit silly and idiosyncratic sometimes. 
 
-Also my custom build script mightn't be very robust, so yeah
-(as in it might not work (but it works on my machine)).
+Also my custom build script may not be very robust, so yeah
+(as in it may not work on your machine).
 You may wonder why I didn't just use make.
 
 Building
