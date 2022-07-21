@@ -23,8 +23,8 @@ Replace `<target>` with either `iso`, `qemu`, or the device file name.
 `iso` will only make the iso file, wheras `qemu` will also run it in qemu.
 If you use a device file (for example `/dev/sdb`), it will use dd to write the iso to the specified device.
 
-It is recomended to clear the build folder every so often, especially after changing header files,
-as the build script currently doesn't account for changed header files.
+It is recomended to clear the build folder to recompile after changing header files,
+as the build script currently doesn't account for them.
 The build script also doesn't delete anything itself. I intend to fix both of these things.
 
 Requirements
