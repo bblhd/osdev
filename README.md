@@ -13,19 +13,21 @@ You may wonder why I didn't just use make.
 
 Building
 ---
-Build the kernel and "install" it using the build.sh script like so.
+The build script is written for linux and tested on bash. 
 
-`
-./build.sh <target format>
-`
+You can compile the kernel and "install" it using the build script like so.
 
-Replace `<target format>` with either `iso`, `qemu`, or the device file name.
+```
+./build.sh <target>
+```
+
+Replace `<target>` with either `iso`, `qemu`, or the device file name.
 `iso` will only make the iso file, wheras `qemu` will also run it in qemu.
-If you use a device file, it will use dd to write the iso to the specified device.
+If you use a device file (for example `/dev/sdb`), it will use dd to write the iso to the specified device.
 
 It is recomended to clear the build folder every so often, especially after changing header files,
 as the build script currently doesn't account for changed header files.
-The build script also doesn't delete anything itself.
+The build script also doesn't delete anything itself. I intend to fix both of these things
 
 Requirements
 ---
