@@ -5,7 +5,7 @@
 #include <ktao.h>
 
 #define PC_VGA_BUFFER ((uint16_t *) 0xB8000)
-#define GLOBAL_DEFAULT_COLOR make_vga_color(14, 1)
+#define GLOBAL_DEFAULT_COLOR make_vga_color(13, 0)
 
 inline uint8_t make_vga_color(uint8_t fg, uint8_t bg) {
 	return ((fg & 0b1111) | (bg & 0b111) << 4);

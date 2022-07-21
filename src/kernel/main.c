@@ -31,7 +31,7 @@ int x86_pc_init(void) {
     print("  IDT installed\n");
 
     pit_init(SYSTEM_TICKS_PER_SEC);
-    printf("  i8253 (PIT) initialized @%d hz\n", SYSTEM_TICKS_PER_SEC);
+    printf("  i8253 (PIT) initialized @%i hz\n", SYSTEM_TICKS_PER_SEC);
 
     pic_init();
     print("  i8259 (PIC) initialized\n");
@@ -76,6 +76,35 @@ struct multiboot_info multibootStorage;
 #define COMMANDMEM_LENGTH 20
 char commandMemory[COMMANDMEM_LENGTH][80];
 int commandMemory_head = 0;
+
+void printUnescapedString(struct VGA_Target *target, char *string) {
+	char escapedCommandbuff[80];
+	escapedCommandbuff[0] = '\0';
+	for (int i = 0, j = 0; string[i] != '\0'; j++) {
+		if (string[i] == '\\') {
+			i++;
+			if (string[i] == 'e') {
+				escapedCommandbuff[j] = '\e';
+				i++;
+			} else if (string[i] == 'b') {
+				escapedCommandbuff[j] = '\b';
+				i++;
+			} else if (string[i] == 'n') {
+				escapedCommandbuff[j] = '\n';
+				i++;
+			} else if (string[i] == 't') {
+				escapedCommandbuff[j] = '\t';
+				i++;
+			} else {
+				escapedCommandbuff[j] = string[i++];
+			}
+		} else {
+			escapedCommandbuff[j] = string[i++];
+		}
+		escapedCommandbuff[j+1] = '\0';
+	}
+	ktao_println(target, escapedCommandbuff);
+}
 
 void kernel_main(multiboot_info_t* mbd, unsigned int magic) {
 	
@@ -174,6 +203,7 @@ void kernel_main(multiboot_info_t* mbd, unsigned int magic) {
 			ktao_println(&mainTarget, "chars: prints out all characters");
 			ktao_println(&mainTarget, "colors: prints out color test");
 			ktao_println(&mainTarget, "print <message>: prints message");
+			ktao_println(&mainTarget, "sideprint <message>: prints message to sidebar");
 			ktao_println(&mainTarget, "scancode: gets 1 keypress and prints scancode");
 		} else if (streq(commandbuff, "map")) {
 			test_printMemoryMap(&mainTarget, &multibootStorage);
@@ -183,33 +213,10 @@ void kernel_main(multiboot_info_t* mbd, unsigned int magic) {
 			test_printAllColors(&mainTarget);
 		} else if (streq(commandbuff, "reboot")) {
 			plat_reboot();
-		} else if (streqn(commandbuff, "print ", 6)) {
-			char escapedCommandbuff[80];
-			escapedCommandbuff[0] = '\0';
-			for (int i = 6, j = 0; commandbuff[i] != '\0'; j++) {
-				if (commandbuff[i] == '\\') {
-					i++;
-					if (commandbuff[i] == 'e') {
-						escapedCommandbuff[j] = '\e';
-						i++;
-					} else if (commandbuff[i] == 'b') {
-						escapedCommandbuff[j] = '\b';
-						i++;
-					} else if (commandbuff[i] == 'n') {
-						escapedCommandbuff[j] = '\n';
-						i++;
-					} else if (commandbuff[i] == 't') {
-						escapedCommandbuff[j] = '\t';
-						i++;
-					} else {
-						escapedCommandbuff[j] = commandbuff[i++];
-					}
-				} else {
-					escapedCommandbuff[j] = commandbuff[i++];
-				}
-				escapedCommandbuff[j+1] = '\0';
-			}
-			ktao_println(&mainTarget, escapedCommandbuff);
+		} else if (streqn(commandbuff, "print ", 7)) {
+			printUnescapedString(&mainTarget, commandbuff+6);
+		} else if (streqn(commandbuff, "sideprint ", 11)) {
+			printUnescapedString(&sidebarTarget, commandbuff+10);
 		} else if (streq(commandbuff, "scancode")) {
 			while (keyboard_open()) keyboard_get();
 			while (!keyboard_open());
