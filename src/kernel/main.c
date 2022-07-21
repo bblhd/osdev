@@ -109,9 +109,6 @@ void kernel_main(multiboot_info_t* mbd, unsigned int magic) {
 
     x86_enable_int();
 
-    print(" \ec2fHey x86!\er");
-    print("\n\nPress ESC to reboot\n\n");
-    
     print("type commands in the prompt below.\n\n");
 
     while (1) {
@@ -127,20 +124,19 @@ void kernel_main(multiboot_info_t* mbd, unsigned int magic) {
 				uint8_t scancode = keyboard_get();
 				keycode = keycodeFromScancode(scancode);
 				
-				if (scancode == us_scancode_directory[SCANCODED_UP]) {
-					if (mod(historyCursor - 1, COMMANDMEM_LENGTH) != commandMemory_head) {
-						historyCursor = mod(historyCursor - 1, COMMANDMEM_LENGTH);
-						for (int i = 0; i < strlen(commandbuff)+1; i++) {
-							ktao_print(&mainTarget, "\b \b");
+				if (scancode == us_scancode_directory[SCANCODED_UP] || scancode == us_scancode_directory[SCANCODED_DOWN]) {
+					int did = 1;
+					if (scancode == us_scancode_directory[SCANCODED_UP]) {
+						if (mod(historyCursor - 1, COMMANDMEM_LENGTH) != commandMemory_head) {
+							historyCursor = mod(historyCursor - 1, COMMANDMEM_LENGTH);
 						}
-						memcpy(commandbuff,commandMemory[historyCursor],80);
-						ktao_print(&mainTarget, commandbuff);
-						ktao_print(&mainTarget, "\ei_\ei\b");
-						commandcursor = strlen(commandbuff);
-					}
-				} else if (scancode == us_scancode_directory[SCANCODED_DOWN]) {
-					if (historyCursor != commandMemory_head) {
-						historyCursor = mod(historyCursor + 1, COMMANDMEM_LENGTH);
+					} else if (scancode == us_scancode_directory[SCANCODED_DOWN]) {
+						if (historyCursor != commandMemory_head) {
+							historyCursor = mod(historyCursor + 1, COMMANDMEM_LENGTH);
+						}
+					} else did = 1;
+					if (did == 1) {
+						ktao_print(&mainTarget, " ");
 						for (int i = 0; i < strlen(commandbuff)+1; i++) {
 							ktao_print(&mainTarget, "\b \b");
 						}
@@ -178,7 +174,7 @@ void kernel_main(multiboot_info_t* mbd, unsigned int magic) {
 			ktao_println(&mainTarget, "chars: prints out all characters");
 			ktao_println(&mainTarget, "colors: prints out color test");
 			ktao_println(&mainTarget, "print <message>: prints message");
-			ktao_println(&mainTarget, "scancode: gets 1 keypress of keyboard input and prints out scancode");
+			ktao_println(&mainTarget, "scancode: gets 1 keypress and prints scancode");
 		} else if (streq(commandbuff, "map")) {
 			test_printMemoryMap(&mainTarget, &multibootStorage);
 		} else if (streq(commandbuff, "chars")) {

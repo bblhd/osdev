@@ -40,18 +40,12 @@ void test_printAllChars(struct VGA_Target *target) {
 
 
 void test_printAllColors(struct VGA_Target *target) {
-	for (int i = 0; i < 8; i++) {
-		ktao_setColor(target, i, 0);
-		ktao_putGlyph(target, 'X');
-		ktao_setColor(target, i+8, 0);
-		ktao_putGlyph(target, 'X');
-	}
-	ktao_newline(target);
-	for (int i = 0; i < 8; i++) {
-		ktao_setColor(target, 0, i);
-		ktao_putGlyph(target, ' ');
-		ktao_setColor(target, 0, i+8);
-		ktao_putGlyph(target, ' ');
+	for (int b = 0; b < 8; b++) {
+		for (int f = 0; f < 16; f++) {
+			ktao_setColor(target, f, b);
+			ktao_putGlyph(target, 'X');
+		}
+		ktao_newline(target);
 	}
 	ktao_newline(target);
 	ktao_print(target, "\er");
