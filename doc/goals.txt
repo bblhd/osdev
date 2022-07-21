@@ -1,0 +1,19 @@
+Goals for this operating system:
+
+- Run on my Aspire One i868 notebook
+- Have a system I understand in its entirety
+- Ideal End goal: have functional graphical text editor with keyboard and mouse controls,
+	a tiling windows manager, and some kind of interactive shell (text-based or graphical)
+- Idealest End goal (slightly unrealistic): use it as my daily programming driver
+
+Negative goals (things I am not trying to do or that can be done later):
+
+- Run preexisting software on it
+- Emulate windows, linux, or mac
+- Network connectivity
+- POSIX/UNIX compatibility
+
+Methodologies (the manner with which I want to achieve my goals):
+
+- Follow a microkernel design
+- KIS and 'Worse is Better' (what the suckless people like)

@@ -1,0 +1,15 @@
+Roadmap/plan of attack:
+
+	1. interrupts
+		1. GDT table
+		2. interrupts
+		3. timers
+		3. input
+	2. memory
+		1. linked pages
+		2. virtual memory?
+		3. permissions?
+	3. multitasking
+		1. threads
+		2. processes
+	

@@ -1,0 +1,28 @@
+C style guide for operating system
+
+- Expressions/statements that are spread over multiple lines
+	should have some part of them on the previous line (for example, opening bracket)
+
+- Closing brackets should always be on their own line,
+	with the exception of trailing commas, semicolons, and preceding whitespace
+
+- Indents should almost always be used between brackets,
+	and should always use the tab character
+	
+- If a line is visually 'too long' it should be spread over multiple lines
+	
+- Always prefer a medium level density over sparse code
+	
+- Prefer short useful inline comments over large explainatory block comments
+
+- Prefer to have long code near the end rather than the beginning
+
+
+examples of reasonable for statements given these rules
+(this isnt a complete reference, just an idea of what my coding style looks like):
+	
+	for (int x = 0; x < 10; x++) printf("%i\n", i);
+	
+	for (int x = 0; x < 10; x++) {
+		printf("%i\n", i);
+	}
