@@ -7,7 +7,7 @@
 
 #define PIC_ICW_1 0x11
 
-void pic_init(void){
+void pic_init(void) {
     // ICW #1
     out8(PIC_MASTER_REG, PIC_ICW_1);
     out8(PIC_SLAVE_REG, PIC_ICW_1);
@@ -28,14 +28,12 @@ void pic_init(void){
     out8(PIC_SLAVE_IMR, 0x0);
 }
 
-void pic_disable(void){
+void pic_disable(void) {
     out8(PIC_MASTER_IMR, 0xff);
     out8(PIC_SLAVE_IMR, 0xff);
 }
 
-void pic_send_EOI(uint32_t irq){
-    if (40 <= irq)
-        out8(PIC_SLAVE_REG, 0x20);
-
+void pic_send_EOI(uint32_t irq) {
+    if (irq >= 40) out8(PIC_SLAVE_REG, 0x20);
     out8(PIC_MASTER_REG, 0x20);
 }

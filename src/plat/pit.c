@@ -10,8 +10,7 @@ static uint16_t divisor;
 #define INTERNAL_FREQ 1193182ULL
 #define INTERNAL_FREQ_3X 3579546ULL
 
-void pit_init(uint32_t frequency)
-{
+void pit_init(uint32_t frequency) {
     uint32_t count, remainder;
 
     /* figure out the correct divisor for the desired frequency */
@@ -23,16 +22,12 @@ void pit_init(uint32_t frequency)
         count = INTERNAL_FREQ_3X / frequency;
         remainder = INTERNAL_FREQ_3X % frequency;
 
-        if (remainder >= INTERNAL_FREQ_3X / 2) {
-            count += 1;
-        }
+        if (remainder >= INTERNAL_FREQ_3X / 2) count++;
 
         count /= 3;
         remainder = count % 3;
 
-        if (remainder >= 1) {
-            count += 1;
-        }
+        if (remainder >= 1) count++;
     }
 
     divisor = count & 0xffff;
@@ -42,5 +37,4 @@ void pit_init(uint32_t frequency)
     out8(I8253_CONTROL_REG, 0x34);
     out8(I8253_DATA_REG, divisor & 0xff); // LSB
     out8(I8253_DATA_REG, divisor >> 8); // MSB
-
 }

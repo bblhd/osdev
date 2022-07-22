@@ -1,54 +1,59 @@
 #include <x86.h>
 #include <plat.h>
 #include <ktao.h>
-#include <debugprint.h>
 #include <keyboard.h>
 #include <multiboot.h>
 #include <test_print.h>
-#include <string.h>
 
-#define SYSTEM_TICKS_PER_SEC            20
+#include <string.h>
+#include <math.h>
+
+void kernelpanic(char *message);
+
+#define SYSTEM_TICKS_PER_SEC 10
 #define X86_OK 0
 #define APP_PRIORITY 16
 
-#define IDLE_STACK_SIZE_BYTES 1024*16
-#define APP_STACK_SIZE 1024*16 
+#define IDLE_STACK_SIZE_BYTES 1024*32
+#define APP_STACK_SIZE 1024*32 
 
 static uint8_t idle_thread_stack[IDLE_STACK_SIZE_BYTES];
 static uint8_t app_stack[APP_STACK_SIZE];
 
-int mod(int x, int y) {
-	while (x < 0) x += y;
-	while (x >= y) x -= y;
-	return x;
+int systemTime = 0;
+
+void sys_tick_handler(x86_iframe_t* frame) {
+	systemTime++;
+	pic_send_EOI(IRQ_PIT);
 }
 
-int x86_pc_init(void) {
-    gdt_install_flat();
-    print("  GDT installed\n");
-
-    setup_idt();
-    print("  IDT installed\n");
-
-    pit_init(SYSTEM_TICKS_PER_SEC);
-    printf("  i8253 (PIT) initialized @%i hz\n", SYSTEM_TICKS_PER_SEC);
-
-    pic_init();
-    print("  i8259 (PIC) initialized\n");
-
-    irq_register_handler(0, sys_tick_handler);
-    print("  IRQ handler set: sys_tick_handler\n");
-
-    irq_register_handler(1, sys_key_handler);
-    print("  IRQ handler set: sys_key_handler\n");
-
-    print("\n");
-
-    return X86_OK;
+void keyboard_sendKeyEvent(uint8_t scancode);
+void sys_key_handler(x86_iframe_t* frame){
+	//scancode https://wiki.osdev.org/PS/2_Keyboard
+	keyboard_sendKeyEvent(in8(0x60));
 }
 
 struct VGA_Target sidebarTarget;
 struct VGA_Target mainTarget;
+
+void sys_other_handler(x86_iframe_t* frame){
+	ktao_printf(&sidebarTarget, "IRQ %i\n", frame->vector-32);
+}
+
+
+int x86_pc_init() {
+    gdt_install_flat();
+    setup_idt();
+    pit_init(SYSTEM_TICKS_PER_SEC);
+    pic_init();
+    x86_enable_int();
+
+    irq_register_handler(0, sys_tick_handler);
+    irq_register_handler(1, sys_key_handler);
+    //for (int i = 2; i < 16; i++) irq_register_handler(i, sys_other_handler);
+
+    return X86_OK;
+}
 
 void test_print(struct VGA_Target *target) {
 	ktao_println(target, "   .--------------.   ");
@@ -85,19 +90,16 @@ void printUnescapedString(struct VGA_Target *target, char *string) {
 			i++;
 			if (string[i] == 'e') {
 				escapedCommandbuff[j] = '\e';
-				i++;
 			} else if (string[i] == 'b') {
 				escapedCommandbuff[j] = '\b';
-				i++;
 			} else if (string[i] == 'n') {
 				escapedCommandbuff[j] = '\n';
-				i++;
 			} else if (string[i] == 't') {
 				escapedCommandbuff[j] = '\t';
-				i++;
 			} else {
-				escapedCommandbuff[j] = string[i++];
+				escapedCommandbuff[j] = string[i];
 			}
+			i++;
 		} else {
 			escapedCommandbuff[j] = string[i++];
 		}
@@ -107,38 +109,27 @@ void printUnescapedString(struct VGA_Target *target, char *string) {
 }
 
 void kernel_main(multiboot_info_t* mbd, unsigned int magic) {
-	
-	/* Make sure the magic number matches for memory mapping*/
-	if(magic != MULTIBOOT_BOOTLOADER_MAGIC) {
-		//terminal_println("invalid magic number, exiting.");
-		goto failure;
-	}
-	
-	/* Check bit 6 to see if we have a valid memory map */
-	if(!(mbd->flags >> 6 & 0x1)) {
-		//terminal_println("invalid memory map given by GRUB bootloader, exiting.");
-		goto failure;
-	}
-	
+	if(magic != MULTIBOOT_BOOTLOADER_MAGIC) kernelpanic("Multiboot magic number bad");
+	if(!(mbd->flags >> 6 & 0x1)) kernelpanic("Multiboot header bad");
 	memcpy(&multibootStorage, mbd, sizeof(struct multiboot_info));
-	
-	ktao_clearAll();
-	
-	ktao_initialiseToGlobalVGA(&sidebarTarget, PC_VGA_WIDTH-22,0, 22,PC_VGA_HEIGHT);
-	ktao_initialiseToGlobalVGA(&mainTarget, 0,0, PC_VGA_WIDTH-22-2,PC_VGA_HEIGHT);
-	setDebugOutputSource(&mainTarget);
+
+    if(X86_OK != x86_pc_init()) kernelpanic("Kernel initialisation failed");
 	
 	plat_hide_cursor();
 	
+	ktao_clearAll();
+	ktao_initialiseToGlobalVGA(&sidebarTarget, PC_VGA_WIDTH-22,0, 22,PC_VGA_HEIGHT);
+	ktao_initialiseToGlobalVGA(&mainTarget, 0,0, PC_VGA_WIDTH-22-2,PC_VGA_HEIGHT);
+    
+	ktao_print(&mainTarget, "kernel initialisation:\n");
+    ktao_print(&mainTarget, "  GDT installed\n");
+    ktao_print(&mainTarget, "  IDT installed\n");
+    ktao_printf(&mainTarget, "  i8253 (PIT) initialized @%i hz\n", SYSTEM_TICKS_PER_SEC);
+    ktao_print(&mainTarget, "  i8259 (PIC) initialized\n");
+	
 	test_print(&sidebarTarget);
 
-    print("kernel_main()\n");
-
-    if(X86_OK != x86_pc_init()) goto failure;
-
-    x86_enable_int();
-
-    print("type commands in the prompt below.\n\n");
+    ktao_printf(&mainTarget, "type commands in the prompt below.\n\n");
 
     while (1) {
 		int historyCursor = commandMemory_head;
@@ -149,6 +140,8 @@ void kernel_main(multiboot_info_t* mbd, unsigned int magic) {
 		char keycode;
 		do {
 			keycode = 0;
+			
+			asm volatile ("hlt");
 			if (keyboard_open()) {
 				uint8_t scancode = keyboard_get();
 				keycode = keycodeFromScancode(scancode);
@@ -187,6 +180,7 @@ void kernel_main(multiboot_info_t* mbd, unsigned int magic) {
 				}
 				commandbuff[commandcursor] = '\0';
 			}
+			
 		} while (keycode != '\n');
 		
 		memcpy(commandMemory[commandMemory_head], commandbuff, 80);
@@ -219,15 +213,11 @@ void kernel_main(multiboot_info_t* mbd, unsigned int magic) {
 			printUnescapedString(&sidebarTarget, commandbuff+10);
 		} else if (streq(commandbuff, "scancode")) {
 			while (keyboard_open()) keyboard_get();
+		    asm volatile ("hlt");
 			while (!keyboard_open());
 			while (keyboard_open()) ktao_printf(&mainTarget, "%i\n", keyboard_get());
 		} else {
 			ktao_println(&mainTarget, "Not a valid command, try help");
 		}
 	}
-
-failure:  
-
-    print("[FAILURE]\n");
-    x86_halt();
 }

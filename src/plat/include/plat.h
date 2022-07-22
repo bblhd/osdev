@@ -6,6 +6,8 @@
 
 #include "x86.h"
 
+typedef void (*IRQHandler)(x86_iframe_t*);
+
 void pic_init(void);
 void pic_send_EOI(uint32_t);
 void pic_disable(void);

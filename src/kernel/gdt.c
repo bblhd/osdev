@@ -1,5 +1,4 @@
-struct gdt_entry
-{
+struct gdt_entry {
     unsigned short limit_low;
     unsigned short base_low;
     unsigned char base_middle;
@@ -8,8 +7,7 @@ struct gdt_entry
     unsigned char base_high;
 } __attribute__((packed));
 
-struct gdt_ptr
-{
+struct gdt_ptr {
     unsigned short limit;
     unsigned int base;
 } __attribute__((packed));
@@ -19,8 +17,7 @@ struct gdt_ptr gdt_p;
 
 extern void gdt_flush();
 
-void init_gdt_entry(int index, unsigned long base, unsigned long limit, unsigned char access, unsigned char granularity)
-{
+void init_gdt_entry(int index, unsigned long base, unsigned long limit, unsigned char access, unsigned char granularity) {
     gdt[index].base_low = (base & 0xFFFF);
     gdt[index].base_middle = (base >> 16) & 0xFF;
     gdt[index].base_high = (base >> 24) & 0xFF;
@@ -30,8 +27,7 @@ void init_gdt_entry(int index, unsigned long base, unsigned long limit, unsigned
     gdt[index].access = access;
 }
 
-void gdt_install_flat()
-{
+void gdt_install_flat() {
     gdt_p.limit = (sizeof(struct gdt_entry) * 3) - 1;
     gdt_p.base = (unsigned int) gdt;
 
