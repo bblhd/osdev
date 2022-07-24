@@ -98,7 +98,7 @@ void commandPrompt(struct VGA_Target *target, char *buffer, int len) {
 	char keycode = 0;
 	
 	while (keycode != '\n') {
-		asm volatile ("hlt");
+		asm volatile ("hlt"); //halts to give the cpu a rest
 		if (keyboard_open()) {
 			uint8_t scancode = keyboard_get();
 			keycode = keycodeFromScancode(scancode);
@@ -184,7 +184,7 @@ void kernel_main(multiboot_info_t* mbd, unsigned int magic) {
 			else if (compiled[i] == OP_NAMED) n = 3;
 			else if (compiled[i] == OP_BIND) n = 3;
 			
-			ktao_printf(&mainTarget, "[%i ... %i] ", i, i+n-1);
+			ktao_printf(&mainTarget, "[%i - %i] ", i, i+n-1);
 			
 			ktao_printf(&mainTarget, "%s ", flipt_operator_names[compiled[i++]]);
 			n--;

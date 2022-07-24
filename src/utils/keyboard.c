@@ -114,7 +114,7 @@ char keyboard_getCapital(char c) {
 		case '9': return '(';
 		case '0': return ')';
 		case '-': return '_';
-		case '+': return '+';
+		case '=': return '+';
 		case '[': return '{';
 		case ']': return '}';
 		case '\\': return '|';

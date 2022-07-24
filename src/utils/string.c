@@ -1,21 +1,10 @@
 #include <string.h>
 
-uint16_t *memsetw(uint16_t *dest, uint16_t val, size_t count) {
-    uint16_t *temp = dest;
+void *memset(void *dest, uint16_t val, size_t count) {
+    uint16_t *d = dest;
 
     while(count--){
-        *temp++ = val;
-    }
-
-    return dest;
-}
-
-void *memcpyw(uint16_t* restrict dest, const uint16_t* restrict src, size_t n) {
-    uint8_t *d = (uint8_t*) dest;
-    const uint8_t *s = (const uint8_t*) src;
-
-    while(n--){
-        *dest++ = *src++;
+        *d++ = val;
     }
 
     return dest;
@@ -25,9 +14,7 @@ void *memcpy(void *dest, const void *src, size_t n) {
     uint8_t *d = dest;
     const uint8_t *s = src;
 
-    while(n--){
-        *d++ = *s++;
-    }
+    while(n--) *d++ = *s++;
 
     return dest;
 }
@@ -77,6 +64,7 @@ int streq(char *a, char *b) {
 	while (a[i] != '\0' && a[i] == b[i]) i++;
 	return a[i] == '\0' && b[i] == '\0';
 }
+
 int streqn(char *a, char *b, int n) {
 	int i = 0;
 	while (a[i] != '\0' && a[i] == b[i] && i < n-1) i++;

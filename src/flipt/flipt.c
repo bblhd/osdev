@@ -1,5 +1,6 @@
 #include <stdint.h>
 
+#include <string.h>
 #include <filpt.h>
 
 typedef _Bool bool;
@@ -9,7 +10,8 @@ char *flipt_operator_names[] = {
 	"pushb", "pushs", "pushw",
 	"pushbn", "pushsn", "pushwn",
 	"pushsmall", "pushlarge",
-	"named", "bind", "unbind"
+	"valueof", "bind", "unbind",
+	"startmark", "endmark"
 };
 
 void writeSingleByte(void **out, uint8_t b) {
@@ -47,41 +49,162 @@ void writePushOperation(void **out, int value) {
 	}
 }
 
-void flipt_compile(char *source, void *out, int n) {
-	while (*source != '\0' && n-- != 0) {
+// must fix all this code
+
+struct {
+	char *symbol;
+	uint8_t opcode;
+} simpleOperations[] = {
+	{.symbol=";", .opcode=OP_UNBIND},
+	{.symbol="(", .opcode=OP_MARKSTART},
+	{.symbol=")", .opcode=OP_MARKEND},
+	{.symbol="", .opcode=OP_END}
+};
+
+uint8_t pullSimpleOp(char **string) {
+	for (int i = 0; simpleOperations[i].opcode != OP_END; i++) {
+		char *matchstr = simpleOperations[i].symbol;
+		
+		int j = 0;
+		while (
+			matchstr[j] != '\0'
+			&& matchstr[j] == *string[j]
+		) j++;
+		
+		if (matchstr[j] == '\0') {
+			*string+=j;
+			return simpleOperations[i].opcode;
+		}
+	}
+	return 0;
+}
+
+uint8_t doesStringStartWithOp(char *string) {
+	for (int i = 0; simpleOperations[i].opcode != OP_END; i++) {
+		char *matchstr = simpleOperations[i].symbol;
+		
+		int j = 0;
+		while (
+			matchstr[j] != '\0'
+			&& matchstr[j] == string[j]
+		) j++;
+		
+		if (matchstr[j] == '\0') return simpleOperations[i].opcode;
+	}
+	return OP_END;
+}
+
+char globalNameIndex[256][16];
+int getVariableNameIndex(char *name, int len) {
+	if (len > 16) len = 16;
+	int index = 0;
+	while (
+		globalNameIndex[index][0] != '\0'
+		&& !streqn(globalNameIndex[index], name, len)
+	) index++;
+	
+	if (globalNameIndex[index][0] == '\0') {
+		memcpy(globalNameIndex[index], name, len);
+	}
+	return index;
+}
+
+void flipt_compileSub(char **source, void **out);
+
+void compileNextExpression(char **sourceptr, void **outptr) {
+	char *source, *start;
+	void *out = *outptr;
+	source = *sourceptr;
+	start = source;
+	while (*source == ' ' || *source == '\n' || *source == '\t') {
+		source++;
+	}
+	if (*source == '"') {
+		do {
+			source++;
+			if (*source == '\\') {
+				source++;
+			}
+		} while (*source != '"');
+		
+		if (source-start <= 255) {
+			writeSingleByte(&out, OP_PUSHSMALLBYTES);
+			writeSingleByte(&out, (int) (source-start));
+		} else {
+			writeSingleByte(&out, OP_PUSHLARGEBYTES);
+			writeSingleShort(&out, (int) (source-start));
+		}
+		for (char *str = start+1; str != source; str++) {
+			writeSingleByte(&out, *str);
+		}
+		writeSingleByte(&out, '\0');
+		source++;
+	} else if (*source == '{') {
+		source++;
+		
+		writeSingleByte(&out, OP_PUSHLARGEBYTES);
+		short *length = out;
+		writeSingleShort(&out, 0);
+		
+		void *outstart = out;
+		
+		flipt_compileSub(&source, &out);
+		
+		*length = (uint8_t *) out - (uint8_t *) outstart;
+		
+		source++;
+		
+	} else if (source[0] >= '0' && source[0] <= '9' || source[0] == '-' && source[1] >= '0' && source[1] <= '9') {
+		int isNegative = 0;
+		if (*source == '-') {
+			source++;
+			isNegative = 1;
+		}
+		int value = 0;
+		while (*source >= '0' && *source <= '9') {
+			value = 10 * value + (*source++ - '0');
+		}
+		if (isNegative) value = -value;
+		writePushOperation(&out, value);
+	} else if (doesStringStartWithOp(source)) {
+		uint8_t opcode = pullSimpleOp(&source);
+		writeSingleByte(&out, opcode);
+	} else {
+		while (
+			*source != '\0'
+			&& !doesStringStartWithOp(source)
+			&& *source != ' ' && *source != '\n' && *source != '\t'
+			&& *source != '"'
+			&& *source != '{'
+			&& *source != '-' && !(*source >= '0' && *source <= '9')
+			&& *source != ':'
+		) source++;
+		
+		int index = getVariableNameIndex(start, source-start+1);
+		
 		while (*source == ' ' || *source == '\n' || *source == '\t') {
 			source++;
 		}
-		if (*source == '"') {
-			char *stringstart = source;
-			do {
-				source++;
-				if (*source == '\\') {
-					source++;
-				}
-			} while (*source != '"');
-			writeSingleByte(&out, OP_PUSHSMALLBYTES);
-			writeSingleByte(&out, (int) (source-stringstart-1));
-			for (char *str = source-1; str != stringstart; str--) {
-				writeSingleByte(&out, *str);
-			}
+		
+		if (*source == ':') {
 			source++;
-		} else if (*source == '{') {
-			
-		} else if (source[0] >= '0' && source[0] <= '9' || source[0] == '-' && source[1] >= '0' && source[1] <= '9') {
-			int isNegative = 0;
-			if (*source == '-') {
-				source++;
-				isNegative = 1;
-			}
-			int value = 0;
-			while (*source >= '0' && *source <= '9') {
-				value = 10 * value + (*source++ - '0');
-			}
-			if (isNegative) value = -value;
-			writePushOperation(&out, value);
+			writeSingleByte(&out, OP_BIND);
+		} else {
+			writeSingleByte(&out, OP_NAMED);
 		}
+		writeSingleShort(&out, index);
 	}
-	writeSingleByte(&out, OP_END);
+	*sourceptr = source;
+	*outptr = out;
 }
 
+void flipt_compileSub(char **source, void **out) {
+	while ((**source != '\0' && **source != '}')) {
+		compileNextExpression(source, out);
+	}
+	writeSingleByte(out, OP_END);
+}
+
+void flipt_compile(char *source, void *out) {
+	flipt_compileSub(&source, &out);
+}
