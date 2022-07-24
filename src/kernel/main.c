@@ -4,6 +4,7 @@
 #include <keyboard.h>
 #include <multiboot.h>
 #include <test_print.h>
+#include <filpt.h>
 
 #include <string.h>
 #include <math.h>
@@ -144,9 +145,11 @@ void commandPrompt(struct VGA_Target *target, char *buffer, int len) {
 	ktao_newline(target);
 }
 
+
 void kernel_main(multiboot_info_t* mbd, unsigned int magic) {
 	if(magic != MULTIBOOT_BOOTLOADER_MAGIC) kernelpanic("Multiboot magic number bad");
 	if(!(mbd->flags >> 6 & 0x1)) kernelpanic("Multiboot header bad");
+	
 	memcpy(&multibootStorage, mbd, sizeof(struct multiboot_info));
 
     if(X86_OK != x86_pc_init()) kernelpanic("Kernel initialisation failed");
@@ -167,34 +170,28 @@ void kernel_main(multiboot_info_t* mbd, unsigned int magic) {
 		char commandbuff[mainTarget.width-2];
 		commandPrompt(&mainTarget, commandbuff, mainTarget.width-3);
 		
-		if (streq(commandbuff, "help")) {
-			ktao_println(&mainTarget, "help: prints this dialogue");
-			ktao_println(&mainTarget, "reboot: reboots the computer");
-			ktao_println(&mainTarget, "map: prints out memory map");
-			ktao_println(&mainTarget, "chars: prints out all characters");
-			ktao_println(&mainTarget, "colors: prints out color test");
-			ktao_println(&mainTarget, "print <message>: prints message");
-			ktao_println(&mainTarget, "sideprint <message>: prints message to sidebar");
-			ktao_println(&mainTarget, "scancode: gets 1 keypress and prints scancode");
-		} else if (streq(commandbuff, "map")) {
-			test_printMemoryMap(&mainTarget, &multibootStorage);
-		} else if (streq(commandbuff, "chars")) {
-			test_printAllChars(&mainTarget);
-		} else if (streq(commandbuff, "colors")) {
-			test_printAllColors(&mainTarget);
-		} else if (streq(commandbuff, "reboot")) {
-			plat_reboot();
-		} else if (streqn(commandbuff, "print ", 7)) {
-			printUnescapedString(&mainTarget, commandbuff+6);
-		} else if (streqn(commandbuff, "sideprint ", 11)) {
-			printUnescapedString(&sidebarTarget, commandbuff+10);
-		} else if (streq(commandbuff, "scancode")) {
-			while (keyboard_open()) keyboard_get();
-		    asm volatile ("hlt");
-			while (!keyboard_open());
-			while (keyboard_open()) ktao_printf(&mainTarget, "%i\n", keyboard_get());
-		} else {
-			ktao_println(&mainTarget, "Not a valid command, try help");
+		uint8_t compiled[128];
+
+		flipt_compile(commandbuff, (void *) compiled, -1);
+		
+		for (int i = 0; i < 128 && compiled[i] != 0;) {
+			int n = 1;
+			if (compiled[i] == OP_PUSHB || compiled[i] == OP_PUSHBN) n = 2;
+			else if (compiled[i] == OP_PUSHS || compiled[i] == OP_PUSHSN) n = 3;
+			else if (compiled[i] == OP_PUSHW || compiled[i] == OP_PUSHWN) n = 5;
+			else if (compiled[i] == OP_PUSHSMALLBYTES) n = compiled[i+1] + 2;
+			else if (compiled[i] == OP_PUSHLARGEBYTES) n = (*((uint16_t *) (compiled+i+1)))+3;
+			else if (compiled[i] == OP_NAMED) n = 3;
+			else if (compiled[i] == OP_BIND) n = 3;
+			
+			ktao_printf(&mainTarget, "[%i ... %i] ", i, i+n-1);
+			
+			ktao_printf(&mainTarget, "%s ", flipt_operator_names[compiled[i++]]);
+			n--;
+			while (n-- > 0) {
+				ktao_printf(&mainTarget, "%u, ", (unsigned int) compiled[i++]);
+			}
+			ktao_printf(&mainTarget, "\n");
 		}
 	}
 }

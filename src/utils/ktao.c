@@ -177,28 +177,26 @@ void ktao_printlong(struct VGA_Target *target, long num) {
 	ktao_print(target, nb);
 }
 
-int ktao_vprintf1(struct VGA_Target *target, const char *format, va_list va) {
-	if (format[0] == '%') {
-		if (format[1] == 'i') {
-			ktao_printlong(target, va_arg(va, long));
-		} else if (format[1] == 'u') {
-			ktao_printulong(target, va_arg(va, unsigned long));
-		} else if (format[1] == 'p') {
-			ktao_printptr(target, va_arg(va, void*));
-		} else if (format[1] == 's') {
-			ktao_print(target, va_arg(va, char*));
-		} else {
-			return 1 + ktao_print1(target, format);
-		}
-		return 2;
-	} else {
-		return ktao_print1(target, format);
-	}
-}
-
-
 void ktao_vprintf(struct VGA_Target *target, const char *format, va_list va) {
-	while (*format != '\0') format += ktao_vprintf1(target, format, va);
+	while (*format != '\0') {
+		if (format[0] == '%') {
+			if (format[1] == 'i') {
+				ktao_printlong(target, va_arg(va, int));
+			} else if (format[1] == 'u') {
+				ktao_printulong(target, va_arg(va, unsigned int));
+			} else if (format[1] == 'p') {
+				ktao_printptr(target, va_arg(va, void*));
+			} else if (format[1] == 's') {
+				ktao_print(target, va_arg(va, char*));
+			} else {
+				format += 1 + ktao_print1(target, format);
+				continue;
+			}
+			format += 2;
+		} else {
+			format += ktao_print1(target, format);
+		}
+	}
 }
 
 void ktao_printf(struct VGA_Target *target, const char *format, ...) {

@@ -1,5 +1,5 @@
 
-CFLAGS="-std=gnu99 -ffreestanding -O2 -Wall -Wextra -Werror -Wno-unused-parameter -Wno-unused-but-set-variable -Wno-unused-variable -Wno-sign-compare"
+CFLAGS="-std=gnu99 -ffreestanding -O2 -Wall -Wextra -Werror -Wno-parentheses -Wno-unused-parameter -Wno-unused-but-set-variable -Wno-unused-variable -Wno-sign-compare"
 LDFLAGS="-O2 -nostdlib"
 BUILDDIR="build"
 BINNAME="$BUILDDIR/out.bin"

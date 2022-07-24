@@ -20,8 +20,6 @@ $ pop n tokens and store them in seperate memory, returning the pointer to them
 
 { ... } $ 
 
-( % + % ) add :
-
 4 offset : 200 size : size offset - ; ;
 
 200 {size : size 4 -}$!

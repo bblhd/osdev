@@ -1,12 +1,15 @@
 #include <stdint.h>
 
+#include <filpt.h>
+
 typedef _Bool bool;
 
-enum Opcodes {
-	OP_END,
-	OP_PUSHB, OP_PUSHS, OP_PUSHW,
-	OP_PUSHCODE, OP_PUSHSTRING,
-	OP_NAMED, OP_BIND, OP_UNBIND
+char *flipt_operator_names[] = {
+	"end",
+	"pushb", "pushs", "pushw",
+	"pushbn", "pushsn", "pushwn",
+	"pushsmall", "pushlarge",
+	"named", "bind", "unbind"
 };
 
 void writeSingleByte(void **out, uint8_t b) {
@@ -22,43 +25,61 @@ void writeSingleWord(void **out, uint32_t w) {
 	*out = (void *) (((uint32_t *) *out) + 1);
 }
 
-void writePushOperation(void **out, unsigned int value) {
+void writePushOperation(void **out, int value) {
+	uint8_t op = 0;
+	if (value >= 0) {
+		if (value < 1 << 8) op = OP_PUSHB;
+		else if (value < 1 << 16) op = OP_PUSHS;
+		else op = OP_PUSHW;
+	} else {
+		value = -value;
+		if (value < 1 << 8) op = OP_PUSHBN;
+		else if (value < 1 << 16) op = OP_PUSHSN;
+		else op = OP_PUSHWN;
+	}
+	writeSingleByte(out, op);
 	if (value < 1 << 8) {
-		writeSingleByte(out, OP_PUSHB);
 		writeSingleByte(out, value);
 	} else if (value < 1 << 16) {
-		writeSingleByte(out, OP_PUSHS);
 		writeSingleShort(out, value);
 	} else {
-		writeSingleByte(out, OP_PUSHW);
 		writeSingleWord(out, value);
 	}
 }
 
-void flipt_compile(char *source, void *out) {
-	int codeDepth = 0;
-	
-	while (*source != '\0') {
-		if (codeDepth == 0) {
-			while (*source == ' ' || *source == '\n' || *source == '\t') {
+void flipt_compile(char *source, void *out, int n) {
+	while (*source != '\0' && n-- != 0) {
+		while (*source == ' ' || *source == '\n' || *source == '\t') {
+			source++;
+		}
+		if (*source == '"') {
+			char *stringstart = source;
+			do {
 				source++;
-			}
-			if (*source == '"') {
-				char *stringstart = source;
-				do {
+				if (*source == '\\') {
 					source++;
-					if (*source == '\\') {
-						source++;
-					}
-				} while (*source != '"');
-				writePushOperation(&out, 0);
-				for (char *str = source-1; str != stringstart; str--) {
-					writePushOperation(&out, *str);
 				}
-				source++;
-			} else if (*source == '{') {
-				
+			} while (*source != '"');
+			writeSingleByte(&out, OP_PUSHSMALLBYTES);
+			writeSingleByte(&out, (int) (source-stringstart-1));
+			for (char *str = source-1; str != stringstart; str--) {
+				writeSingleByte(&out, *str);
 			}
+			source++;
+		} else if (*source == '{') {
+			
+		} else if (source[0] >= '0' && source[0] <= '9' || source[0] == '-' && source[1] >= '0' && source[1] <= '9') {
+			int isNegative = 0;
+			if (*source == '-') {
+				source++;
+				isNegative = 1;
+			}
+			int value = 0;
+			while (*source >= '0' && *source <= '9') {
+				value = 10 * value + (*source++ - '0');
+			}
+			if (isNegative) value = -value;
+			writePushOperation(&out, value);
 		}
 	}
 	writeSingleByte(&out, OP_END);
