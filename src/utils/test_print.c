@@ -6,6 +6,27 @@
 
 #include <ktao.h>
 
+void test_print(struct VGA_Target *target) {
+	ktao_println(target, "   .--------------.   ");
+	ktao_println(target, "   |.------------.|   ");
+	ktao_println(target, "   ||            ||   ");
+	ktao_println(target, "   ||            ||   ");
+	ktao_println(target, "   ||            ||   ");
+	ktao_println(target, "   ||            ||   ");
+	ktao_println(target, "   |+------------+|   ");
+	ktao_println(target, "   +-..--------..-+   ");
+	ktao_println(target, "   .--------------.   ");
+	ktao_println(target, "  / /============\\ \\  ");
+	ktao_println(target, " / /==============\\ \\ ");
+	ktao_println(target, "/____________________\\");
+	ktao_println(target, "\\____________________/");
+	
+	ktao_newline(target);
+	
+	ktao_println(target, "Hello there!");
+	ktao_println(target, "Welcome to my WIP\noperating system!");
+}
+
 char memorymapTypeLabels[][10] = {
 	"?", "Available", "Reserved", "ACPI", "NVS", "Bad", "?"
 };

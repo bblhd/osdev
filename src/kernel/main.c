@@ -20,10 +20,10 @@ void kernelpanic(char *message);
 static uint8_t idle_thread_stack[IDLE_STACK_SIZE_BYTES];
 static uint8_t app_stack[APP_STACK_SIZE];
 
-int systemTime = 0;
+int systemTick = 0;
 
 void sys_tick_handler(x86_iframe_t* frame) {
-	systemTime++;
+	systemTick++;
 	pic_send_EOI(IRQ_PIT);
 }
 
@@ -50,30 +50,9 @@ int x86_pc_init() {
 
     irq_register_handler(0, sys_tick_handler);
     irq_register_handler(1, sys_key_handler);
-    //for (int i = 2; i < 16; i++) irq_register_handler(i, sys_other_handler);
+    for (int i = 2; i < 16; i++) irq_register_handler(i, sys_other_handler);
 
     return X86_OK;
-}
-
-void test_print(struct VGA_Target *target) {
-	ktao_println(target, "   .--------------.   ");
-	ktao_println(target, "   |.------------.|   ");
-	ktao_println(target, "   ||            ||   ");
-	ktao_println(target, "   ||            ||   ");
-	ktao_println(target, "   ||            ||   ");
-	ktao_println(target, "   ||            ||   ");
-	ktao_println(target, "   |+------------+|   ");
-	ktao_println(target, "   +-..--------..-+   ");
-	ktao_println(target, "   .--------------.   ");
-	ktao_println(target, "  / /============\\ \\  ");
-	ktao_println(target, " / /==============\\ \\ ");
-	ktao_println(target, "/____________________\\");
-	ktao_println(target, "\\____________________/");
-	
-	ktao_newline(target);
-	
-	ktao_println(target, "Hello there!");
-	ktao_println(target, "Welcome to my WIP\noperating system!");
 }
 
 struct multiboot_info multibootStorage;
@@ -108,6 +87,63 @@ void printUnescapedString(struct VGA_Target *target, char *string) {
 	ktao_println(target, escapedCommandbuff);
 }
 
+void commandPrompt(struct VGA_Target *target, char *buffer, int len) {
+	int historyCursor = commandMemory_head;
+	
+	int cursor = 0;
+	
+	buffer[cursor] = '\0';
+	ktao_print(target, "> \ei_\ei\b");
+	char keycode = 0;
+	
+	while (keycode != '\n') {
+		asm volatile ("hlt");
+		if (keyboard_open()) {
+			uint8_t scancode = keyboard_get();
+			keycode = keycodeFromScancode(scancode);
+			
+			if (scancode == us_scancode_directory[SCANCODED_UP] || scancode == us_scancode_directory[SCANCODED_DOWN]) {
+				if (scancode == us_scancode_directory[SCANCODED_UP]) {
+					if (mod(historyCursor - 1, COMMANDMEM_LENGTH) != commandMemory_head) {
+						historyCursor = mod(historyCursor - 1, COMMANDMEM_LENGTH);
+					}
+				} else if (scancode == us_scancode_directory[SCANCODED_DOWN]) {
+					if (historyCursor != commandMemory_head) {
+						historyCursor = mod(historyCursor + 1, COMMANDMEM_LENGTH);
+					}
+				}
+				
+				ktao_print(target, " ");
+				for (int i = 0; i < strlen(buffer)+1; i++) {
+					ktao_print(target, "\b \b");
+				}
+				memcpy(buffer, commandMemory[historyCursor], len);
+				ktao_print(target, buffer);
+				ktao_print(target, "\ei_\ei\b");
+				cursor = strlen(buffer);
+			} else if (keycode == 0x08 && cursor > 0) {
+				ktao_print(target, "\b\ei_\ei \b\b");
+				cursor--;
+			} else if (keycode != '\n' && keycode != 0x08 && keycode != 0x00 && cursor < len) {
+				if (keyboard_modifier(MODIFIER_SHIFT) || keyboard_modifier(MODIFIER_CAPS)) {
+					keycode = keyboard_getCapital(keycode);
+				}
+				buffer[cursor++] = keycode;
+				ktao_putGlyph(target, keycode);
+				ktao_print(target, "\ei_\ei\b");
+			}
+			buffer[cursor] = '\0';
+		}
+	}
+	
+	memcpy(commandMemory[commandMemory_head], buffer, len);
+	commandMemory_head = mod(commandMemory_head + 1, COMMANDMEM_LENGTH);
+	commandMemory[commandMemory_head][0] = '\0';
+	
+	ktao_putGlyph(target, 0);
+	ktao_newline(target);
+}
+
 void kernel_main(multiboot_info_t* mbd, unsigned int magic) {
 	if(magic != MULTIBOOT_BOOTLOADER_MAGIC) kernelpanic("Multiboot magic number bad");
 	if(!(mbd->flags >> 6 & 0x1)) kernelpanic("Multiboot header bad");
@@ -121,74 +157,15 @@ void kernel_main(multiboot_info_t* mbd, unsigned int magic) {
 	ktao_initialiseToGlobalVGA(&sidebarTarget, PC_VGA_WIDTH-22,0, 22,PC_VGA_HEIGHT);
 	ktao_initialiseToGlobalVGA(&mainTarget, 0,0, PC_VGA_WIDTH-22-2,PC_VGA_HEIGHT);
     
-	ktao_print(&mainTarget, "kernel initialisation:\n");
-    ktao_print(&mainTarget, "  GDT installed\n");
-    ktao_print(&mainTarget, "  IDT installed\n");
-    ktao_printf(&mainTarget, "  i8253 (PIT) initialized @%i hz\n", SYSTEM_TICKS_PER_SEC);
-    ktao_print(&mainTarget, "  i8259 (PIC) initialized\n");
+    ktao_printf(&mainTarget, "systemTick initialised to %i hz\n\n", SYSTEM_TICKS_PER_SEC);
 	
 	test_print(&sidebarTarget);
 
     ktao_printf(&mainTarget, "type commands in the prompt below.\n\n");
 
-    while (1) {
-		int historyCursor = commandMemory_head;
-		char commandbuff[80];
-		int commandcursor = 0;
-		commandbuff[commandcursor] = '\0';
-		ktao_print(&mainTarget, "> \ei_\ei\b");
-		char keycode;
-		do {
-			keycode = 0;
-			
-			asm volatile ("hlt");
-			if (keyboard_open()) {
-				uint8_t scancode = keyboard_get();
-				keycode = keycodeFromScancode(scancode);
-				
-				if (scancode == us_scancode_directory[SCANCODED_UP] || scancode == us_scancode_directory[SCANCODED_DOWN]) {
-					int did = 1;
-					if (scancode == us_scancode_directory[SCANCODED_UP]) {
-						if (mod(historyCursor - 1, COMMANDMEM_LENGTH) != commandMemory_head) {
-							historyCursor = mod(historyCursor - 1, COMMANDMEM_LENGTH);
-						}
-					} else if (scancode == us_scancode_directory[SCANCODED_DOWN]) {
-						if (historyCursor != commandMemory_head) {
-							historyCursor = mod(historyCursor + 1, COMMANDMEM_LENGTH);
-						}
-					} else did = 1;
-					if (did == 1) {
-						ktao_print(&mainTarget, " ");
-						for (int i = 0; i < strlen(commandbuff)+1; i++) {
-							ktao_print(&mainTarget, "\b \b");
-						}
-						memcpy(commandbuff,commandMemory[historyCursor],80);
-						ktao_print(&mainTarget, commandbuff);
-						ktao_print(&mainTarget, "\ei_\ei\b");
-						commandcursor = strlen(commandbuff);
-					}
-				} else if (keycode == 0x08 && commandcursor > 0) {
-					ktao_print(&mainTarget, "\b\ei_\ei \b\b");
-					commandcursor--;
-				} else if (keycode != '\n' && keycode != 0x08 && keycode != 0x00 && mainTarget.column < mainTarget.width-1) {
-					if (keyboard_modifier(MODIFIER_SHIFT) || keyboard_modifier(MODIFIER_CAPS)) {
-						keycode = keyboard_getCapital(keycode);
-					}
-					ktao_putGlyph(&mainTarget, keycode);
-					ktao_print(&mainTarget, "\ei_\ei\b");
-					commandbuff[commandcursor++] = keycode;
-				}
-				commandbuff[commandcursor] = '\0';
-			}
-			
-		} while (keycode != '\n');
-		
-		memcpy(commandMemory[commandMemory_head], commandbuff, 80);
-		commandMemory_head = mod(commandMemory_head + 1, COMMANDMEM_LENGTH);
-		commandMemory[commandMemory_head][0] = '\0';
-		
-		ktao_putGlyph(&mainTarget, 0);
-		ktao_newline(&mainTarget);
+	while (1) {
+		char commandbuff[mainTarget.width-2];
+		commandPrompt(&mainTarget, commandbuff, mainTarget.width-3);
 		
 		if (streq(commandbuff, "help")) {
 			ktao_println(&mainTarget, "help: prints this dialogue");

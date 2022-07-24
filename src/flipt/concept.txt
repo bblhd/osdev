@@ -1,0 +1,30 @@
+flipt (Forth Like scrIPT) (also a play on words "flipped the script")
+
+memory required:
+	- stack space, int array or something
+	- name space, sequential string array
+	- allocation space, also int array but managed
+
+( push stack pointer to marker stack
+) pop marker stack and push the current stack pointer minus it to the stack
+$ pop n tokens and store them in seperate memory, returning the pointer to them
+! call function at pointer
+; undind last bound variable
+<variable> : bind to variable
+<variable> retrive value of variable
+
+{ add stack pointer to marker stack and switch to compile mode 
+} pop marker stack and push the current stack pointer minus it to the stack and switch out of compile mode
+
+1 2 add tostring print
+
+{ ... } $ 
+
+( % + % ) add :
+
+4 offset : 200 size : size offset - ; ;
+
+200 {size : size 4 -}$!
+
+
+{ ; } "unbind" : unbind!
