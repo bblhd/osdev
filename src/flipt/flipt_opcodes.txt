@@ -1,0 +1,35 @@
+end
+
+pushb
+pushs
+pushw
+
+pushbn
+pushsn
+pushwn
+
+pushsmall
+pushlarge
+
+valueof
+bind
+unbind
+rebind
+
+skip
+call !
+if ?
+while ??
+
+not ~
+ne ~=
+eq =
+gt >
+lt <
+ge >=
+le <=
+
+add +
+sub -
+mult *
+div /

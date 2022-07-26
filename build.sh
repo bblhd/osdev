@@ -1,4 +1,3 @@
-
 CFLAGS="-std=gnu99 -ffreestanding -O2 -Wall -Wextra -Werror -Wno-parentheses -Wno-unused-parameter -Wno-unused-but-set-variable -Wno-unused-variable -Wno-sign-compare"
 LDFLAGS="-O2 -nostdlib"
 BUILDDIR="build"
@@ -26,7 +25,16 @@ for dir in src/*; do
 	fi
 done
 
-echo "include sources:$INCLUDE_SUBSOURCES"
+#echo "include sources:$INCLUDE_SUBSOURCES"
+
+if [ ! -f "src/flipt/flipt_opcodes.c" ] || [ "src/flipt/flipt_opgen.lua" -nt "src/flipt/flipt_opcodes.c" ]; then
+	echo -ne "\033[96m[generating flipt files]\033[0m lua src/flipt/flipt_opgen.lua\n"
+	cd src/flipt
+	lua5.2 flipt_opgen.lua
+	cd ../..
+else
+	echo -ne "\033[96m[generating flipt files]\033[0m files are up to date\n"
+fi
 
 if [ ! -d "$BUILDDIR" ]; then
 	mkdir "$BUILDDIR"

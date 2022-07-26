@@ -1,0 +1,25 @@
+#ifndef FLIPT_H
+#define FLIPT_H
+#include <stdint.h>
+
+
+extern char *flipt_opNames[];
+void flipt_compile(char *source, void *out);
+void flipt_interpret(uint8_t *bytecode);
+
+enum Opcodes {
+	OP_END,
+	OP_PUSHB, OP_PUSHS, OP_PUSHW,
+	OP_PUSHBN, OP_PUSHSN, OP_PUSHWN,
+	OP_PUSHSTRLB, OP_PUSHSTRLS, OP_PUSHSTRLW,
+	OP_VALUEOFLB, OP_VALUEOFLS, OP_VALUEOFLW,
+	OP_BINDLB, OP_BINDLS, OP_BINDLW,
+	OP_UNBINDLB, OP_UNBINDLS, OP_UNBINDLW,
+	OP_REBINDLB, OP_REBINDLS, OP_REBINDLW,
+	OP_PUSHOFFSETB, OP_PUSHOFFSETS, OP_PUSHOFFSETW,
+	OP_SKIP, OP_CALL, OP_IF, OP_WHILE, OP_IFELSE,
+	OP_NOT, OP_NE, OP_EQ, OP_GT, OP_LT, OP_GE, OP_LE,
+	OP_ADD, OP_SUB, OP_MULT, OP_DIV
+};
+
+#endif

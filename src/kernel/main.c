@@ -4,7 +4,7 @@
 #include <keyboard.h>
 #include <multiboot.h>
 #include <test_print.h>
-#include <filpt.h>
+#include <flipt.h>
 
 #include <string.h>
 #include <math.h>
@@ -145,6 +145,60 @@ void commandPrompt(struct VGA_Target *target, char *buffer, int len) {
 	ktao_newline(target);
 }
 
+void flipt_printBytecode(struct VGA_Target *target, uint8_t *compiled) {
+	for (int i = 0; compiled[i] != OP_END || compiled[i+1] != OP_END;) {
+		uint8_t op = compiled[i];
+		int n = 1;
+		
+		if (
+			op == OP_PUSHB || op == OP_PUSHBN || op == OP_PUSHOFFSETB
+			|| op == OP_VALUEOFLB || op == OP_BINDLB || op == OP_UNBINDLB || op == OP_REBINDLB
+		) n = 2;
+		else if (
+			op == OP_PUSHS || op == OP_PUSHSN || op == OP_SKIP || op == OP_PUSHOFFSETS
+			|| op == OP_VALUEOFLS || op == OP_BINDLS || op == OP_UNBINDLS || op == OP_REBINDLS
+		) n = 3;
+		else if (
+			op == OP_PUSHW || op == OP_PUSHWN || op == OP_PUSHOFFSETW
+			|| op == OP_VALUEOFLW || op == OP_BINDLW || op == OP_UNBINDLW || op == OP_REBINDLW
+		) n = 5;
+		else if (op == OP_PUSHSTRLB) n = *(uint8_t *) (compiled+i+1) + 2;
+		else if (op == OP_PUSHSTRLS) n = *(uint16_t *) (compiled+i+1) + 3;
+		else if (op == OP_PUSHSTRLW) n = *(uint32_t *) (compiled+i+1) + 5;
+		
+		ktao_printf(target, "[%i - %i] %s ", i, i+n-1, flipt_opNames[op]);
+		i++; n--;
+		
+		if (op == OP_PUSHSTRLB) {
+			i++; n--;
+		} else if (op == OP_PUSHSTRLS) {
+			i+=2; n-=2;
+		} else if (op == OP_PUSHSTRLW) {
+			i+=4; n-=4;
+		} else if (
+			op == OP_SKIP || op == OP_PUSHS || op == OP_PUSHSN || op == OP_PUSHOFFSETS
+			|| op == OP_VALUEOFLS || op == OP_BINDLS || op == OP_UNBINDLS || op == OP_REBINDLS
+		) {
+			ktao_printf(target, "%u, ", *(uint16_t *) (compiled+i));
+			i+=2; n-=2;
+		} else if (
+			op == OP_PUSHW || op == OP_PUSHWN || op == OP_PUSHOFFSETW
+			|| op == OP_VALUEOFLW || op == OP_BINDLW || op == OP_UNBINDLW || op == OP_REBINDLW
+		) {
+			ktao_printf(target, "%u, ", *(uint32_t *) (compiled+i));
+			i+=4; n-=4;
+		}
+		
+		while (n-- > 0) {
+			ktao_printf(target, "%u, ", (unsigned int) compiled[i]);
+			i++;
+		}
+		ktao_printf(target, "\n");
+	}
+}
+
+extern int flipt_globalStack[256];
+extern int flipt_globalStack_top;
 
 void kernel_main(multiboot_info_t* mbd, unsigned int magic) {
 	if(magic != MULTIBOOT_BOOTLOADER_MAGIC) kernelpanic("Multiboot magic number bad");
@@ -164,50 +218,23 @@ void kernel_main(multiboot_info_t* mbd, unsigned int magic) {
 	
 	test_print(&sidebarTarget);
 
-    ktao_printf(&mainTarget, "type commands in the prompt below.\n\n");
+    ktao_print(&mainTarget, "type commands in the prompt below.\n\n");
 
 	while (1) {
 		char commandbuff[mainTarget.width-2];
 		commandPrompt(&mainTarget, commandbuff, mainTarget.width-3);
 		
+		flipt_globalStack_top = 0;
 		uint8_t compiled[128];
 
 		flipt_compile(commandbuff, (void *) compiled);
+		//flipt_printBytecode(&mainTarget, compiled);
 		
-		for (int i = 0; i < 128 && compiled[i] != 0;) {
-			uint8_t op = compiled[i];
-			int n = 1;
-			
-			if (op == OP_PUSHB || op == OP_PUSHBN) n = 2;
-			else if (op == OP_PUSHS || op == OP_PUSHSN) n = 3;
-			else if (op == OP_PUSHW || op == OP_PUSHWN) n = 5;
-			else if (op == OP_PUSHSMALL) n = compiled[i+1] + 2;
-			else if (op == OP_PUSHLARGE) n = (*((uint16_t *) (compiled+i+1)))+3;
-			else if (op == OP_VALUEOF || op == OP_BIND) n = 3;
-			
-			ktao_printf(&mainTarget, "[%i - %i] %s ", i, i+n-1, flipt_operator_names[op]);
-			i++; n--;
-			
-			if (op == OP_PUSHSMALL) {
-				i++; n--;
-			} else if (op == OP_PUSHLARGE) {
-				i+=2; n-=2;
-			} else if (
-				op == OP_PUSHS || op == OP_PUSHSN
-				|| op == OP_BIND || op == OP_VALUEOF
-			) {
-				ktao_printf(&mainTarget, "%u, ", *(uint16_t *) (compiled+i));
-				i+=2; n-=2;
-			} else if (op == OP_PUSHW || op == OP_PUSHWN) {
-				ktao_printf(&mainTarget, "%u, ", *(uint32_t *) (compiled+i));
-				i+=4; n-=4;
-			}
-			
-			while (n-- > 0) {
-				ktao_printf(&mainTarget, "%u, ", (unsigned int) compiled[i]);
-				i++;
-			}
-			ktao_printf(&mainTarget, "\n");
+		flipt_interpret(compiled);
+		ktao_print(&mainTarget, "= ");
+		for (int i = 0; i < flipt_globalStack_top; i++) {
+			ktao_printf(&mainTarget, "%i, ", flipt_globalStack[i]);
 		}
+		ktao_print(&mainTarget, "\n");
 	}
 }

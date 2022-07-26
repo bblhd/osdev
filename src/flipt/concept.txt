@@ -7,16 +7,24 @@ memory required:
 
 ( push the current point of execution, and disable execution until matching stop reached
 ) stop
-! goto pointer until unmatched stop instruction found
-; undind last bound variable
-name: bind to variable
+
 name retrive value of variable
+;name undind variable
+:name bind int to variable
+::name rebind int to variable
+
+! goto pointer and execute until unmatched stop instruction found, then return
+<x> <y> ? if y is non zero, execute at x (!)
+<x> <y> ?? execute at y and if it returns non-zero, execute at x. repeat until y returns zero
 
 
 1 2 add tostring print
 
 4 offset : 200 size : size offset - ; ;
 
-200 ( size : size 4 - ; ) !
+200 ::size
+;size
 
-( ; ) unbind: unbind!
+200 ( :size size 4 - ;size ) !
+
+( ;bind ) unbind: unbind!
