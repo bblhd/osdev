@@ -177,8 +177,8 @@ void compileNextExpression(char **sourceptr, void **outptr) {
 		source++;
 		*length = (uint8_t *) out - (uint8_t *) compileStart;
 		
-		writePushOffsetOperation(&out, *length);
-	} else {
+		writePushOperation(&out, (uint8_t *) compileStart - (uint8_t *) globalOutStart);
+	} else if (*source != ')') {
 		if (source[0] == ':' && source[1] == ':') {
 			source+=2;
 		} else if (source[0] == ':') {
@@ -293,7 +293,7 @@ void flipt_subinterpret(uint8_t *bytecode, uint8_t *start) {
 			else if (op == OP_PUSHOFFSETS) { value = *(uint16_t *) bytecode; bytecode+=2; }
 			else if (op == OP_PUSHOFFSETW) { value = *(uint32_t *) bytecode; bytecode+=4; }
 			
-			push((int) start + value);
+			push(value);
 			
 		} else if (op == OP_PUSHSTRLB || op == OP_PUSHSTRLS || op == OP_PUSHSTRLW) {
 			
@@ -322,6 +322,9 @@ void flipt_subinterpret(uint8_t *bytecode, uint8_t *start) {
 			} break;
 			case OP_DIV: {
 				push(pop() / pop());
+			} break;
+			case OP_CALL: {
+				flipt_subinterpret(start + pop(), start);
 			} break;
 		}
 		

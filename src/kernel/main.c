@@ -232,7 +232,7 @@ void kernel_main(multiboot_info_t* mbd, unsigned int magic) {
 		
 		flipt_interpret(compiled);
 		ktao_print(&mainTarget, "= ");
-		for (int i = 0; i < flipt_globalStack_top; i++) {
+		for (int i = flipt_globalStack_top - 1; i >= 0; i--) {
 			ktao_printf(&mainTarget, "%i, ", flipt_globalStack[i]);
 		}
 		ktao_print(&mainTarget, "\n");

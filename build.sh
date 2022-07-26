@@ -32,8 +32,6 @@ if [ ! -f "src/flipt/flipt_opcodes.c" ] || [ "src/flipt/flipt_opgen.lua" -nt "sr
 	cd src/flipt
 	lua5.2 flipt_opgen.lua
 	cd ../..
-else
-	echo -ne "\033[96m[generating flipt files]\033[0m files are up to date\n"
 fi
 
 if [ ! -d "$BUILDDIR" ]; then
@@ -55,8 +53,6 @@ function compile_fileset() {
 			if ! $compiler "$file" -o "$ofile"; then
 				FAILED="yes"
 			fi
-		else
-			echo -ne "\033[94m[compiling $name]\033[0m $ofile is up to date\n"
 		fi
 		O_FILES="$O_FILES $ofile"
 	done
@@ -82,8 +78,6 @@ if [ $shouldlink == "yes" ]; then
 	if ! i686-elf-ld -T tools/linker.ld $LDFLAGS -o $BINNAME $O_FILES; then
 		FAILED="yes"
 	fi
-else
-	echo -ne "\033[95m[linking]\033[0m already linked\n"
 fi
 
 
@@ -102,8 +96,6 @@ if [ -n FINISH_MODE ]; then
 		cp "$BINNAME" $BUILDDIR/isodir/boot/os.bin
 		echo "menuentry \"osdev\" { multiboot /boot/os.bin }" > $BUILDDIR/isodir/boot/grub/grub.cfg
 		2>/dev/null 1>/dev/null grub-mkrescue -o "$ISONAME" $BUILDDIR/isodir
-	else
-		echo -ne "\033[91m[making iso]\033[0m $ISONAME is up to date\n"
 	fi
 	
 	if [[ "$FINISH_MODE" == /dev/* ]]; then
