@@ -11,7 +11,8 @@ char *flipt_operator_names[] = {
 	"pushbn", "pushsn", "pushwn",
 	"pushsmall", "pushlarge",
 	"valueof", "bind", "unbind",
-	"startmark", "endmark"
+	"start", "stop",
+	"call"
 };
 
 void writeSingleByte(void **out, uint8_t b) {
@@ -56,8 +57,9 @@ struct {
 	uint8_t opcode;
 } simpleOperations[] = {
 	{.symbol=";", .opcode=OP_UNBIND},
-	{.symbol="(", .opcode=OP_MARKSTART},
-	{.symbol=")", .opcode=OP_MARKEND},
+	{.symbol="(", .opcode=OP_START},
+	{.symbol=")", .opcode=OP_STOP},
+	{.symbol="!", .opcode=OP_CALL},
 	{.symbol="", .opcode=OP_END}
 };
 
@@ -109,8 +111,6 @@ int getVariableNameIndex(char *name, int len) {
 	return index;
 }
 
-void flipt_compileSub(char **source, void **out);
-
 void compileNextExpression(char **sourceptr, void **outptr) {
 	char *source, *start;
 	void *out = *outptr;
@@ -128,10 +128,10 @@ void compileNextExpression(char **sourceptr, void **outptr) {
 		} while (*source != '"');
 		
 		if (source-start <= 255) {
-			writeSingleByte(&out, OP_PUSHSMALLBYTES);
+			writeSingleByte(&out, OP_PUSHSMALL);
 			writeSingleByte(&out, (int) (source-start));
 		} else {
-			writeSingleByte(&out, OP_PUSHLARGEBYTES);
+			writeSingleByte(&out, OP_PUSHLARGE);
 			writeSingleShort(&out, (int) (source-start));
 		}
 		for (char *str = start+1; str != source; str++) {
@@ -139,21 +139,6 @@ void compileNextExpression(char **sourceptr, void **outptr) {
 		}
 		writeSingleByte(&out, '\0');
 		source++;
-	} else if (*source == '{') {
-		source++;
-		
-		writeSingleByte(&out, OP_PUSHLARGEBYTES);
-		short *length = out;
-		writeSingleShort(&out, 0);
-		
-		void *outstart = out;
-		
-		flipt_compileSub(&source, &out);
-		
-		*length = (uint8_t *) out - (uint8_t *) outstart;
-		
-		source++;
-		
 	} else if (source[0] >= '0' && source[0] <= '9' || source[0] == '-' && source[1] >= '0' && source[1] <= '9') {
 		int isNegative = 0;
 		if (*source == '-') {
@@ -175,7 +160,6 @@ void compileNextExpression(char **sourceptr, void **outptr) {
 			&& !doesStringStartWithOp(source)
 			&& *source != ' ' && *source != '\n' && *source != '\t'
 			&& *source != '"'
-			&& *source != '{'
 			&& *source != '-' && !(*source >= '0' && *source <= '9')
 			&& *source != ':'
 		) source++;
@@ -190,7 +174,7 @@ void compileNextExpression(char **sourceptr, void **outptr) {
 			source++;
 			writeSingleByte(&out, OP_BIND);
 		} else {
-			writeSingleByte(&out, OP_NAMED);
+			writeSingleByte(&out, OP_VALUEOF);
 		}
 		writeSingleShort(&out, index);
 	}
@@ -198,13 +182,9 @@ void compileNextExpression(char **sourceptr, void **outptr) {
 	*outptr = out;
 }
 
-void flipt_compileSub(char **source, void **out) {
-	while ((**source != '\0' && **source != '}')) {
-		compileNextExpression(source, out);
-	}
-	writeSingleByte(out, OP_END);
-}
-
 void flipt_compile(char *source, void *out) {
-	flipt_compileSub(&source, &out);
+	while (*source != '\0') {
+		compileNextExpression(&source, &out);
+	}
+	writeSingleByte(&out, OP_END);
 }

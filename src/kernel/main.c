@@ -172,24 +172,40 @@ void kernel_main(multiboot_info_t* mbd, unsigned int magic) {
 		
 		uint8_t compiled[128];
 
-		flipt_compile(commandbuff, (void *) compiled, -1);
+		flipt_compile(commandbuff, (void *) compiled);
 		
 		for (int i = 0; i < 128 && compiled[i] != 0;) {
+			uint8_t op = compiled[i];
 			int n = 1;
-			if (compiled[i] == OP_PUSHB || compiled[i] == OP_PUSHBN) n = 2;
-			else if (compiled[i] == OP_PUSHS || compiled[i] == OP_PUSHSN) n = 3;
-			else if (compiled[i] == OP_PUSHW || compiled[i] == OP_PUSHWN) n = 5;
-			else if (compiled[i] == OP_PUSHSMALLBYTES) n = compiled[i+1] + 2;
-			else if (compiled[i] == OP_PUSHLARGEBYTES) n = (*((uint16_t *) (compiled+i+1)))+3;
-			else if (compiled[i] == OP_NAMED) n = 3;
-			else if (compiled[i] == OP_BIND) n = 3;
 			
-			ktao_printf(&mainTarget, "[%i - %i] ", i, i+n-1);
+			if (op == OP_PUSHB || op == OP_PUSHBN) n = 2;
+			else if (op == OP_PUSHS || op == OP_PUSHSN) n = 3;
+			else if (op == OP_PUSHW || op == OP_PUSHWN) n = 5;
+			else if (op == OP_PUSHSMALL) n = compiled[i+1] + 2;
+			else if (op == OP_PUSHLARGE) n = (*((uint16_t *) (compiled+i+1)))+3;
+			else if (op == OP_VALUEOF || op == OP_BIND) n = 3;
 			
-			ktao_printf(&mainTarget, "%s ", flipt_operator_names[compiled[i++]]);
-			n--;
+			ktao_printf(&mainTarget, "[%i - %i] %s ", i, i+n-1, flipt_operator_names[op]);
+			i++; n--;
+			
+			if (op == OP_PUSHSMALL) {
+				i++; n--;
+			} else if (op == OP_PUSHLARGE) {
+				i+=2; n-=2;
+			} else if (
+				op == OP_PUSHS || op == OP_PUSHSN
+				|| op == OP_BIND || op == OP_VALUEOF
+			) {
+				ktao_printf(&mainTarget, "%u, ", *(uint16_t *) (compiled+i));
+				i+=2; n-=2;
+			} else if (op == OP_PUSHW || op == OP_PUSHWN) {
+				ktao_printf(&mainTarget, "%u, ", *(uint32_t *) (compiled+i));
+				i+=4; n-=4;
+			}
+			
 			while (n-- > 0) {
-				ktao_printf(&mainTarget, "%u, ", (unsigned int) compiled[i++]);
+				ktao_printf(&mainTarget, "%u, ", (unsigned int) compiled[i]);
+				i++;
 			}
 			ktao_printf(&mainTarget, "\n");
 		}

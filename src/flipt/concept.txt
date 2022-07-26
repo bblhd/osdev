@@ -2,27 +2,21 @@ flipt (Forth Like scrIPT) (also a play on words "flipped the script")
 
 memory required:
 	- stack space, int array or something
-	- name space, sequential string array
-	- allocation space, also int array but managed
+	- name space, sequential string array?
 
-( push stack pointer to marker stack
-) pop marker stack and push the current stack pointer minus it to the stack
-$ pop n tokens and store them in seperate memory, returning the pointer to them
-! call function at pointer
+
+( push the current point of execution, and disable execution until matching stop reached
+) stop
+! goto pointer until unmatched stop instruction found
 ; undind last bound variable
-<variable> : bind to variable
-<variable> retrive value of variable
+name: bind to variable
+name retrive value of variable
 
-{ add stack pointer to marker stack and switch to compile mode 
-} pop marker stack and push the current stack pointer minus it to the stack and switch out of compile mode
 
 1 2 add tostring print
 
-{ ... } $ 
-
 4 offset : 200 size : size offset - ; ;
 
-200 {size : size 4 -}$!
+200 ( size : size 4 - ; ) !
 
-
-{ ; } "unbind" : unbind!
+( ; ) unbind: unbind!
