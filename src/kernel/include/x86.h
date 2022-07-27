@@ -18,50 +18,47 @@ typedef struct x86_32_iframe {
 void gdt_install_flat(void);    
 void setup_idt(void);
 
-static inline void out8(uint16_t port, uint8_t value)
-{
-    __asm__ volatile("outb %[value], %[port]" :: [port] "d"(port), [value] "a"(value));
+static inline void out8(uint16_t port, uint8_t value) {
+    asm volatile ("outb %[value], %[port]" :: [port] "d"(port), [value] "a"(value));
 }
 
-static inline void out16(uint16_t port, uint16_t value)
-{
-    __asm__ volatile("outw %[value], %[port]" :: [port] "d"(port), [value] "a"(value));
+static inline void out16(uint16_t port, uint16_t value) {
+    asm volatile ("outw %[value], %[port]" :: [port] "d"(port), [value] "a"(value));
 }
 
-static inline uint8_t in8(uint16_t port)
-{
+static inline uint8_t in8(uint16_t port) {
     uint8_t value;
-    __asm__ volatile("inb %[port], %[value]" : [value] "=a"(value) : [port] "d" (port));
+    asm volatile ("inb %[port], %[value]" : [value] "=a"(value) : [port] "d" (port));
     return value;
 }
 
-static inline uint32_t x86_get_eflags(void){
-    
+static inline uint32_t x86_get_eflags(void) {
     uint32_t flags;
-
-    __asm__ volatile(
+    asm volatile (
         "pushfl;"
         "popl %0"
         : "=rm" (flags)
-        :: "memory");
+        :: "memory"
+    );
 
     return flags;
 }
 
-static inline void x86_set_eflags(uint32_t flags){
-    __asm__ volatile(
+static inline void x86_set_eflags(uint32_t flags) {
+    asm volatile (
         "pushl %0;"
         "popfl"
         :: "g" (flags)
-        : "memory", "cc");
+        : "memory", "cc"
+    );
 }
 
 static inline void x86_enable_int(void){
-    __asm__ volatile("sti");
+    asm volatile ("sti");
 }
 
 static inline void x86_disable_int(void){
-    __asm__ volatile("cli");
+    asm volatile ("cli");
 }
 
 static inline void x86_halt(void){

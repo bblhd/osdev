@@ -88,8 +88,8 @@ void commandPrompt(struct VGA_Target *target, char *buffer, int len) {
 						historyCursor = mod(historyCursor + 1, COMMANDMEM_LENGTH);
 					}
 				}
-				
 				memcpy(buffer, commandMemory[historyCursor], len);
+				cursor = strlen(buffer);
 			} else if (scancode == us_scancode_directory[SCANCODED_RIGHT]) {
 				if (cursor < len && buffer[cursor] != '\0') cursor++;
 			} else if (scancode == us_scancode_directory[SCANCODED_LEFT]) {
@@ -127,7 +127,9 @@ void commandPrompt(struct VGA_Target *target, char *buffer, int len) {
 	commandMemory_head = mod(commandMemory_head + 1, COMMANDMEM_LENGTH);
 	commandMemory[commandMemory_head][0] = '\0';
 	
-	ktao_putGlyph(target, 0);
+	ktao_clearBottomRow(target);
+	ktao_print(target, "> ");
+	ktao_print(target, buffer);
 	ktao_newline(target);
 }
 
@@ -247,8 +249,6 @@ void kernel_main(multiboot_info_t* mbd, unsigned int magic) {
 	flipt_external("memorymap", (int) flipt_memorymapStorage);
 
     if(X86_OK != x86_pc_init()) kernelpanic("Kernel initialisation failed");
-    
-	keyboard_setPowerAction(reboot);
 	
 	plat_hide_cursor();
 	

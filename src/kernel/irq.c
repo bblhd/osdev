@@ -47,6 +47,7 @@ void handle_exception(uint32_t vector) {
 void x86_exception_handler(x86_iframe_t* iframe) {
 	if (iframe->vector <= 31) handle_exception(iframe->vector);
 	else if (iframe->vector <= 47) handle_platform_irq(iframe);
+	else if (iframe->vector == 0x80);
 	else handle_exception(16);
 }
 
