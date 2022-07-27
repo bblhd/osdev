@@ -7,6 +7,7 @@ ISONAME="$BUILDDIR/osdev.iso"
 GAS_FILES=
 C_FILES=
 INCLUDE_SUBSOURCES=
+INCLUDE_DIRS=
 
 for dir in src/*; do
     if [[ -d $dir ]]; then
@@ -21,6 +22,7 @@ for dir in src/*; do
 		done
 	    if [[ -d "$dir/include" ]]; then
 			INCLUDE_SUBSOURCES="$INCLUDE_SUBSOURCES -I$dir/include"
+			INCLUDE_DIRS="$INCLUDE_DIRS $dir/include"
 	    fi
 	fi
 done
@@ -48,7 +50,26 @@ function compile_fileset() {
 	filelist=$3
 	for file in $filelist; do
 		ofile="$BUILDDIR/$(basename $file | sed 's/\./_/g').o"
-		if [ ! -f "$ofile" ] || [ "$file" -nt "$ofile" ]; then
+		
+		oldHeaders="no"
+		if [[ $file == *.c ]]; then
+			headerFiles=$(grep "^#include" $file | sed 's/^#include [<"]//' | sed 's/[>"]$//')
+			
+			for hfile in $headerFiles; do
+				for dir in $INCLUDE_DIRS; do
+					if [ -f "$dir/$hfile" ]; then
+						hfile="$dir/$hfile"
+						break
+					fi
+				done
+				if [ -f "$ofile" ] && [ "$hfile" -nt "$ofile" ]; then
+					oldHeaders="yes"
+					break
+				fi
+			done
+		fi
+		
+		if [ ! -f "$ofile" ] || [ "$file" -nt "$ofile" ] || [ $oldHeaders == "yes" ]; then
 			echo -ne "\033[94m[compiling $name]\033[0m $file -> $ofile\n"
 			if ! $compiler "$file" -o "$ofile"; then
 				FAILED="yes"
@@ -65,6 +86,19 @@ if [ $FAILED == "yes" ]; then
 	echo -ne "\n\033[41m\033[97m FAILED TO COMPILE ALL FILES, ABORTING \033[0m\n\n"
 	exit
 fi
+
+for buildofile in $BUILDDIR/*.o; do
+	matchexists="no"
+	for ofile in $O_FILES; do
+		if [ "$buildofile" == "$ofile" ]; then
+			matchexists="yes"
+			break
+		fi
+	done
+	if [ $matchexists == "no" ]; then
+		rm "$buildofile"
+	fi
+done
 
 shouldlink="no"
 for file in $O_FILES; do
