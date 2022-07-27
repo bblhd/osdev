@@ -92,10 +92,12 @@ unsigned char us_scancode_directory[] = {
 	92, //right meta
 	
 	56, //alt
+	
+	94, //power
 };
 
 char keycodeFromScancode(uint8_t scancode) {
-	return keyboard_us[scancode];
+	return scancode < 128 ? keyboard_us[scancode] : 0;
 }
 
 char keyboard_getCapital(char c) {
@@ -170,12 +172,19 @@ void keyboard_keyrelease(uint8_t scancode) {
 	keyboard_downMap[scancode] = 0;
 }
 
+bool isExtendedKey = 0;
+
 void keyboard_sendKeyEvent(uint8_t scancode) {
-    if (scancode < 0x80){
-		keyboard_keypress(scancode & 0b1111111);
-    } else {
-		keyboard_keyrelease(scancode & 0b1111111);
-    }
+	if (scancode == 0xE0) {
+		isExtendedKey = 1;
+	} else {
+		if (scancode < 0x80) {
+			keyboard_keypress(scancode & 0b1111111);
+	    } else {
+			keyboard_keyrelease(scancode & 0b1111111);
+	    }
+		if (isExtendedKey) isExtendedKey = 0;
+	}
 }
 
 int keyboard_open() {

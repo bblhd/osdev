@@ -97,6 +97,8 @@ void commandPrompt(struct VGA_Target *target, char *buffer, int len) {
 			} else if (keycode == 0x08) {
 				if (cursor > 0) cursor--;
 				buffer[cursor] = '\0';
+			} else if (keycode == 0x1B) {
+				plat_reboot();
 			} else if (keycode != '\n' && keycode != 0x00 && cursor < len) {
 				if (keyboard_modifier(MODIFIER_SHIFT) || keyboard_modifier(MODIFIER_CAPS)) {
 					keycode = keyboard_getCapital(keycode);
@@ -114,7 +116,7 @@ void commandPrompt(struct VGA_Target *target, char *buffer, int len) {
 			for (; buffer[i] != '\0' && i < cursor; i++) {
 				ktao_putGlyph(target, buffer[i]);
 			}
-			ktao_print(target, "\ei|\ei");
+			ktao_print(target, "\ei_\ei");
 			for (; buffer[i] != '\0' && i < len; i++) {
 				ktao_putGlyph(target, buffer[i]);
 			}
@@ -243,9 +245,10 @@ void kernel_main(multiboot_info_t* mbd, unsigned int magic) {
 		flipt_memorymapStorage[0]++;
 	}
 	flipt_external("memorymap", (int) flipt_memorymapStorage);
-	
 
     if(X86_OK != x86_pc_init()) kernelpanic("Kernel initialisation failed");
+    
+	keyboard_setPowerAction(reboot);
 	
 	plat_hide_cursor();
 	
