@@ -62,38 +62,13 @@ struct multiboot_info multibootStorage;
 char commandMemory[COMMANDMEM_LENGTH][80];
 int commandMemory_head = 0;
 
-void printUnescapedString(struct VGA_Target *target, char *string) {
-	char escapedCommandbuff[80];
-	escapedCommandbuff[0] = '\0';
-	for (int i = 0, j = 0; string[i] != '\0'; j++) {
-		if (string[i] == '\\') {
-			i++;
-			if (string[i] == 'e') {
-				escapedCommandbuff[j] = '\e';
-			} else if (string[i] == 'b') {
-				escapedCommandbuff[j] = '\b';
-			} else if (string[i] == 'n') {
-				escapedCommandbuff[j] = '\n';
-			} else if (string[i] == 't') {
-				escapedCommandbuff[j] = '\t';
-			} else {
-				escapedCommandbuff[j] = string[i];
-			}
-			i++;
-		} else {
-			escapedCommandbuff[j] = string[i++];
-		}
-		escapedCommandbuff[j+1] = '\0';
-	}
-	ktao_println(target, escapedCommandbuff);
-}
-
 void commandPrompt(struct VGA_Target *target, char *buffer, int len) {
 	int historyCursor = commandMemory_head;
-	
 	int cursor = 0;
-	
 	buffer[cursor] = '\0';
+	
+	if (mainTarget.column > 0) ktao_print(&mainTarget, "\n");
+	
 	ktao_print(target, "> \ei_\ei\b");
 	char keycode = 0;
 	
@@ -114,26 +89,35 @@ void commandPrompt(struct VGA_Target *target, char *buffer, int len) {
 					}
 				}
 				
-				ktao_print(target, " ");
-				for (int i = 0; i < strlen(buffer)+1; i++) {
-					ktao_print(target, "\b \b");
-				}
 				memcpy(buffer, commandMemory[historyCursor], len);
-				ktao_print(target, buffer);
-				ktao_print(target, "\ei_\ei\b");
-				cursor = strlen(buffer);
-			} else if (keycode == 0x08 && cursor > 0) {
-				ktao_print(target, "\b\ei_\ei \b\b");
-				cursor--;
-			} else if (keycode != '\n' && keycode != 0x08 && keycode != 0x00 && cursor < len) {
+			} else if (scancode == us_scancode_directory[SCANCODED_RIGHT]) {
+				if (cursor < len && buffer[cursor] != '\0') cursor++;
+			} else if (scancode == us_scancode_directory[SCANCODED_LEFT]) {
+				if (cursor > 0) cursor--;
+			} else if (keycode == 0x08) {
+				if (cursor > 0) cursor--;
+				buffer[cursor] = '\0';
+			} else if (keycode != '\n' && keycode != 0x00 && cursor < len) {
 				if (keyboard_modifier(MODIFIER_SHIFT) || keyboard_modifier(MODIFIER_CAPS)) {
 					keycode = keyboard_getCapital(keycode);
 				}
+				int i = strlen(buffer)+1;
+				for (; i > cursor; i--) {
+					buffer[i] = buffer[i-1];
+				}
 				buffer[cursor++] = keycode;
-				ktao_putGlyph(target, keycode);
-				ktao_print(target, "\ei_\ei\b");
 			}
-			buffer[cursor] = '\0';
+			
+			ktao_clearBottomRow(target);
+			ktao_print(target, "> ");
+			int i = 0;
+			for (; buffer[i] != '\0' && i < cursor; i++) {
+				ktao_putGlyph(target, buffer[i]);
+			}
+			ktao_print(target, "\ei|\ei");
+			for (; buffer[i] != '\0' && i < len; i++) {
+				ktao_putGlyph(target, buffer[i]);
+			}
 		}
 	}
 	
@@ -181,10 +165,10 @@ int globalFunctionSpace_top = 0;
 
 void cacheFliptFunctions(uint8_t *program, int len) {
 	for (int i = flipt_globalNamespace_top-1; i >= 0; i--) {
-		uint8_t *value = (uint8_t *) (flipt_globalNamespace_values[i]);
-		if (value >= program && value < program + len && (*(value-3) & 0b111111) == OP_SKIP) {
-			flipt_globalNamespace_values[i] = (int) (globalFunctionSpace + globalFunctionSpace_top);
-			for (uint8_t *instr = value; *instr != OP_END;) {
+		uint8_t *start = (uint8_t *) (flipt_globalNamespace_values[i]);
+		if (start >= program && start < program + len) {
+			uint8_t *instr = start;
+			while (*instr != OP_END) {
 				uint8_t op = *instr & 0b111111;
 				uint8_t argsize = *instr >> 6;
 				
@@ -193,28 +177,73 @@ void cacheFliptFunctions(uint8_t *program, int len) {
 				else if (argsize == 2) v = *(uint16_t *) (instr+1);
 				else if (argsize == 3) v = *(uint32_t *) (instr+1);
 				
-				int n = 1
+				instr += 1
 					+ (argsize > 0 ? 1 << (argsize-1) : 0)
-					+ (op == OP_PUSHSTR ? v : 0);
-				
-				while (n-- > 0) {
-					globalFunctionSpace[globalFunctionSpace_top++] = *instr++;
-				}
+					+ (op == OP_PUSHSTR || op == OP_START ? v : 0);
 			}
+			flipt_globalNamespace_values[i] = (int) (globalFunctionSpace + globalFunctionSpace_top);
+			
+			for (uint8_t *i = start; i < instr; i++) {
+				globalFunctionSpace[globalFunctionSpace_top++] = *i;
+			}
+			
+			globalFunctionSpace[globalFunctionSpace_top++] = OP_END;
 		}
 	}
 }
 
-void mainTargetPutchar(int c) {
-    //ktao_printf(&mainTarget, "%i\n", c);
-    ktao_putGlyph(&mainTarget, c);
+void runCommand(char *command) {
+	flipt_globalStack_top = 0;
+	uint8_t compiled[128];
+
+	flipt_compile(command, (void *) compiled);
+	flipt_interpret(compiled);
+	cacheFliptFunctions(compiled, 128);
 }
+
+int ktao_print1(struct VGA_Target *target, const char *string);
+
+char mainTargetPutchar_buffer[6];
+int mainTargetPutchar_i = 0;
+
+void mainTargetPutchar(int c) {
+	mainTargetPutchar_buffer[mainTargetPutchar_i++] = c;
+	mainTargetPutchar_buffer[mainTargetPutchar_i] = '\0';
+	
+	int i = mainTargetPutchar_i;
+	char *b = mainTargetPutchar_buffer;
+	
+	if (
+		i == 1 && b[0] != 0x1b
+		|| i==2 && b[1] == 'i' && b[1] == 'r'
+		|| i==3 && b[1] == 'f' && b[1] == 'b'
+		|| i==4 && b[1] == 'g' && b[1] == 'c'
+	) {
+		ktao_print1(&mainTarget, mainTargetPutchar_buffer);
+		mainTargetPutchar_i = 0;
+		mainTargetPutchar_buffer[mainTargetPutchar_i] = '\0';
+	}
+}
+
+int flipt_memorymapStorage[96];
 
 void kernel_main(multiboot_info_t* mbd, unsigned int magic) {
 	if(magic != MULTIBOOT_BOOTLOADER_MAGIC) kernelpanic("Multiboot magic number bad");
 	if(!(mbd->flags >> 6 & 0x1)) kernelpanic("Multiboot header bad");
 	
 	memcpy(&multibootStorage, mbd, sizeof(struct multiboot_info));
+	
+	int *writeto = flipt_memorymapStorage;
+	*writeto++ = 0;
+	for (unsigned int i = 0; i < mbd->mmap_length; i += sizeof(multiboot_memory_map_t)) {
+		multiboot_memory_map_t *mmmt = (multiboot_memory_map_t *) (mbd->mmap_addr + i);
+		*writeto++ = mmmt->addr_low;
+		*writeto++ = mmmt->len_low;
+		*writeto++ = mmmt->type;
+		flipt_memorymapStorage[0]++;
+	}
+	flipt_external("memorymap", (int) flipt_memorymapStorage);
+	
 
     if(X86_OK != x86_pc_init()) kernelpanic("Kernel initialisation failed");
 	
@@ -232,26 +261,13 @@ void kernel_main(multiboot_info_t* mbd, unsigned int magic) {
     
     flipt_setupOpNames(flipt_opNames);
     flipt_setOutputFunction(mainTargetPutchar);
+    
+	runCommand("((..)(.)??):print");
+	runCommand("(0|(..)(..10%48+|10/)??#):tostring");
 
 	while (1) {
 		char commandbuff[mainTarget.width-2];
 		commandPrompt(&mainTarget, commandbuff, mainTarget.width-3);
-		
-		flipt_globalStack_top = 0;
-		uint8_t compiled[128];
-
-		flipt_compile(commandbuff, (void *) compiled);
-		//flipt_printBytecode(&mainTarget, compiled);
-		
-		flipt_interpret(compiled);
-		ktao_print(&mainTarget, "= ");
-		for (int i = flipt_globalStack_top - 1; i >= 0; i--) {
-			ktao_printf(&mainTarget, "%i, ", flipt_globalStack[i]);
-		}
-		ktao_print(&mainTarget, "\n");
-		
-		cacheFliptFunctions(compiled, 127);
+		runCommand(commandbuff);
 	}
 }
-
-// ((.. 10% | 10/) (..) ??) :printnum

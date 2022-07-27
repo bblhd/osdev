@@ -5,7 +5,7 @@
 #include <ktao.h>
 
 #define PC_VGA_BUFFER ((uint16_t *) 0xB8000)
-#define GLOBAL_DEFAULT_COLOR make_vga_color(13, 0)
+#define GLOBAL_DEFAULT_COLOR make_vga_color(14, 3)
 
 inline uint8_t make_vga_color(uint8_t fg, uint8_t bg) {
 	return ((fg & 0b1111) | (bg & 0b111) << 4);
@@ -73,6 +73,13 @@ void ktao_clearEntries(struct VGA_Target *target) {
 			ktao_set(target, ktao_index(target, x, y), make_vga_entry(0, target->color));
 		}
 	}
+}
+void ktao_clearBottomRow(struct VGA_Target *target) {
+	if (target->buffer == NULL) return;
+	for (size_t x = 0; x < target->width; x++) {
+		ktao_set(target, ktao_index(target, x, target->height-1), make_vga_entry(0, target->color));
+	}
+	target->column = 0;
 }
 
 void ktao_shiftEntries(struct VGA_Target *target, size_t delta) {

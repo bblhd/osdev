@@ -12,6 +12,7 @@ struct {
 	{.symbol="??", .opcode=OP_WHILE},
 	{.symbol="<=", .opcode=OP_LE},
 	{.symbol="|", .opcode=OP_SWAP},
+	{.symbol="#", .opcode=OP_DEL},
 	{.symbol=".", .opcode=OP_OUTPUT},
 	{.symbol="!", .opcode=OP_CALL},
 	{.symbol="+", .opcode=OP_ADD},
@@ -24,11 +25,13 @@ struct {
 	{.symbol="~", .opcode=OP_NOT},
 	{.symbol="/", .opcode=OP_DIV},
 	{.symbol="%", .opcode=OP_MOD},
+	{.symbol="@", .opcode=OP_DEREFERENCE},
 	{.symbol="", .opcode=OP_END},
 };
 
 void flipt_setupOpNames(char *names[]) {
 	names[OP_END] = "end";
+	names[OP_START] = "start";
 	
 	names[OP_CALL] = "call";
 	names[OP_IF] = "if";
@@ -49,12 +52,12 @@ void flipt_setupOpNames(char *names[]) {
 	names[OP_DIV] = "div";
 	names[OP_MOD] = "mod";
 	
+	names[OP_DEL] = "delete";
 	names[OP_SWAP] = "swap";
 	names[OP_DUP] = "duplicate";
 	names[OP_OUTPUT] = "output";
 	
 	names[OP_PUSH] = "push";
-	names[OP_PUSHOFFSET] = "push_offset";
 	names[OP_PUSHN] = "push_negative";
 	names[OP_PUSHSTR] = "push_string";
 	
@@ -63,5 +66,5 @@ void flipt_setupOpNames(char *names[]) {
 	names[OP_UNBIND] = "unbind";
 	names[OP_REBIND] = "rebind";
 	
-	names[OP_SKIP] = "skip";
+	names[OP_DEREFERENCE] = "dereference";
 }

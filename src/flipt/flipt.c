@@ -99,18 +99,27 @@ void compileNextExpression(char **sourceptr, void **outptr) {
 	while (*source == ' ' || *source == '\n' || *source == '\t') {
 		source++;
 	}
+	int length = 0;
 	if (*source == '"') {
 		do {
+			length++;
 			source++;
 			if (*source == '\\') {
 				source++;
 			}
 		} while (*source != '"');
 		
-		writeExtendedOp(&out, OP_PUSHSTR, (int) (source-start));
+		writeExtendedOp(&out, OP_PUSHSTR, length);
 		
-		for (char *str = start+1; str != source; str++) {
-			writeSingleByte(&out, *str);
+		for (char *str = start+1; str < source; str++) {
+			if (*str == '\\') {
+				str++;
+				if (*str == 'e') writeSingleByte(&out, '\e');
+				else if (*str == 'b') writeSingleByte(&out, '\b');
+				else if (*str == 'n') writeSingleByte(&out, '\n');
+				else if (*str == 't') writeSingleByte(&out, '\t');
+				else writeSingleByte(&out, *str);
+			} else writeSingleByte(&out, *str);
 		}
 		writeSingleByte(&out, '\0');
 		source++;
@@ -133,7 +142,7 @@ void compileNextExpression(char **sourceptr, void **outptr) {
 		
 	} else if (*source == '(') {
 		
-		writeExtendedOp(&out, OP_SKIP, 1<<8);
+		writeExtendedOp(&out, OP_START, 1<<8);
 		uint16_t *length = out-2;
 		
 		void *compileStart = out;
@@ -142,9 +151,9 @@ void compileNextExpression(char **sourceptr, void **outptr) {
 		writeSingleByte(&out, OP_END);
 		source++;
 		*length = (uint8_t *) out - (uint8_t *) compileStart;
-		
-		writeExtendedOp(&out, OP_PUSHOFFSET, (uint8_t *) out - (uint8_t *) compileStart);
-	} else if (*source != ')') {
+	} else if (*source == ')') {
+		source++;
+	} else {
 		uint8_t op = OP_VALUEOF;
 		if (source[0] == ':' && source[1] == ':') {
 			op = OP_REBIND;
@@ -170,7 +179,7 @@ void compileNextExpression(char **sourceptr, void **outptr) {
 			&& *source != ' ' && *source != '\n' && *source != '\t'
 			&& *source != '"'
 			&& *source != '-' && !(*source >= '0' && *source <= '9')
-			&& *source != ':'
+			&& *source != ':' && *source != ';'
 		) source++;
 		
 		int index = getVariableNameIndex(name, source-name+1);
@@ -182,7 +191,7 @@ void compileNextExpression(char **sourceptr, void **outptr) {
 }
 
 void flipt_subcompile(char **source, void **out, char end) {
-	while (**source != end) {
+	while (**source != '\0' && **source != end) {
 		compileNextExpression(source, out);
 	}
 }
@@ -232,6 +241,11 @@ void rebind(int id, int value) {
 	if (index >= 0) flipt_globalNamespace_values[index] = value;
 }
 
+void flipt_external(char *name, int value) {
+	int id = getVariableNameIndex(name, strlen(name));
+	bind(id, value);
+}
+
 void push(int value) {
 	if (flipt_globalStack_top < 255) {
 		flipt_globalStack[flipt_globalStack_top++] = value;
@@ -271,15 +285,18 @@ void flipt_interpret(uint8_t *bytecode) {
 		
 		if (argsize > 0) bytecode += 1 << (argsize-1);
 		
-		if (op == OP_PUSH) {
+		if (op == OP_START) {
+			push((uint32_t) bytecode);
+			bytecode += value;
+			
+		} else if (op == OP_PUSH) {
 			push(value);
 		} else if (op == OP_PUSHN) {
 			push(-value);
-		} else if (op == OP_PUSHOFFSET) {
-			push((uint32_t) bytecode - value - 1 - (1 << (argsize-1)));
 		} else if (op == OP_PUSHSTR) {
 			for (int i = value-1; i >= 0; i--) push(bytecode[i]);
 			bytecode+=value;
+			
 		} else if (op == OP_VALUEOF) {
 			push(valueof(value));
 		} else if (op == OP_BIND) {
@@ -288,8 +305,7 @@ void flipt_interpret(uint8_t *bytecode) {
 			unbind(value);
 		} else if (op == OP_REBIND) {
 			rebind(value, pop());
-		} else if (op == OP_SKIP) {
-			bytecode += value;
+			
 		} else if (op == OP_ADD) {
 			push(pop() + pop());
 		} else if (op == OP_SUB) {
@@ -303,8 +319,11 @@ void flipt_interpret(uint8_t *bytecode) {
 		} else if (op == OP_MOD) {
 			int b = pop(); int a = pop();
 			push(a % b);
+			
 		} else if (op == OP_DUP) {
 			push(peek());
+		} else if (op == OP_DEL) {
+			pop();
 		} else if (op == OP_SWAP) {
 			int b = pop(); int a = pop();
 			push(b);
@@ -313,6 +332,10 @@ void flipt_interpret(uint8_t *bytecode) {
 			output_function(pop());
 		} else if (op == OP_CALL) {
 			flipt_interpret((uint8_t *) pop());
+			
+		} else if (op == OP_DEREFERENCE) {
+			push(*(int *) pop());
+			
 		} else if (op == OP_IF) {
 			uint8_t *body = (uint8_t *) pop();
 			

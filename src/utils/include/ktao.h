@@ -22,7 +22,7 @@ enum vga_color {
 	COLOR_LIGHT_CYAN = 11,
 	COLOR_LIGHT_RED = 12,
 	COLOR_LIGHT_MAGENTA = 13,
-	COLOR_LIGHT_BROWN = 14,
+	COLOR_YELLOW = 14,
 	COLOR_WHITE = 15,
 	COLOR_DEFAULT = 0xfe
 };
@@ -51,6 +51,7 @@ void ktao_set(struct VGA_Target *target, size_t index, uint16_t entry);
 uint16_t ktao_get(struct VGA_Target *target, size_t index);
 
 void ktao_clearEntries(struct VGA_Target *target);
+void ktao_clearBottomRow(struct VGA_Target *target);
 void ktao_shiftEntries(struct VGA_Target *target, size_t delta);
 
 void ktao_newline(struct VGA_Target *target);
