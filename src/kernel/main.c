@@ -145,60 +145,70 @@ void commandPrompt(struct VGA_Target *target, char *buffer, int len) {
 	ktao_newline(target);
 }
 
+char *flipt_opNames[64];
+
 void flipt_printBytecode(struct VGA_Target *target, uint8_t *compiled) {
 	for (int i = 0; compiled[i] != OP_END || compiled[i+1] != OP_END;) {
-		uint8_t op = compiled[i];
-		int n = 1;
 		
-		if (
-			op == OP_PUSHB || op == OP_PUSHBN || op == OP_PUSHOFFSETB
-			|| op == OP_VALUEOFLB || op == OP_BINDLB || op == OP_UNBINDLB || op == OP_REBINDLB
-		) n = 2;
-		else if (
-			op == OP_PUSHS || op == OP_PUSHSN || op == OP_SKIP || op == OP_PUSHOFFSETS
-			|| op == OP_VALUEOFLS || op == OP_BINDLS || op == OP_UNBINDLS || op == OP_REBINDLS
-		) n = 3;
-		else if (
-			op == OP_PUSHW || op == OP_PUSHWN || op == OP_PUSHOFFSETW
-			|| op == OP_VALUEOFLW || op == OP_BINDLW || op == OP_UNBINDLW || op == OP_REBINDLW
-		) n = 5;
-		else if (op == OP_PUSHSTRLB) n = *(uint8_t *) (compiled+i+1) + 2;
-		else if (op == OP_PUSHSTRLS) n = *(uint16_t *) (compiled+i+1) + 3;
-		else if (op == OP_PUSHSTRLW) n = *(uint32_t *) (compiled+i+1) + 5;
+		int pos = i;
 		
-		ktao_printf(target, "[%i - %i] %s ", i, i+n-1, flipt_opNames[op]);
-		i++; n--;
+		uint8_t op = compiled[i] & 0b111111;
+		uint8_t argsize = compiled[i] >> 6;
+		i++;
 		
-		if (op == OP_PUSHSTRLB) {
-			i++; n--;
-		} else if (op == OP_PUSHSTRLS) {
-			i+=2; n-=2;
-		} else if (op == OP_PUSHSTRLW) {
-			i+=4; n-=4;
-		} else if (
-			op == OP_SKIP || op == OP_PUSHS || op == OP_PUSHSN || op == OP_PUSHOFFSETS
-			|| op == OP_VALUEOFLS || op == OP_BINDLS || op == OP_UNBINDLS || op == OP_REBINDLS
-		) {
-			ktao_printf(target, "%u, ", *(uint16_t *) (compiled+i));
-			i+=2; n-=2;
-		} else if (
-			op == OP_PUSHW || op == OP_PUSHWN || op == OP_PUSHOFFSETW
-			|| op == OP_VALUEOFLW || op == OP_BINDLW || op == OP_UNBINDLW || op == OP_REBINDLW
-		) {
-			ktao_printf(target, "%u, ", *(uint32_t *) (compiled+i));
-			i+=4; n-=4;
+		unsigned int value = 0;
+		if (argsize == 0b01) value = *(uint8_t *) (compiled+i);
+		else if (argsize == 0b10) value = *(uint16_t *) (compiled+i);
+		else if (argsize == 0b11) value = *(uint32_t *) (compiled+i);
+		
+		if (argsize != 0b00) i += 1 << (argsize-1);
+		
+		ktao_printf(target, "%i: %i|%s[%u] ", compiled + pos, op, flipt_opNames[op], value);
+		
+		if (op == OP_PUSHSTR) {
+			while (value-- > 0) {
+				ktao_printf(target, "%u, ", (unsigned int) compiled[i]);
+				i++;
+			}
 		}
 		
-		while (n-- > 0) {
-			ktao_printf(target, "%u, ", (unsigned int) compiled[i]);
-			i++;
-		}
 		ktao_printf(target, "\n");
 	}
 }
 
-extern int flipt_globalStack[256];
-extern int flipt_globalStack_top;
+uint8_t globalFunctionSpace[512];
+int globalFunctionSpace_top = 0;
+
+void cacheFliptFunctions(uint8_t *program, int len) {
+	for (int i = flipt_globalNamespace_top-1; i >= 0; i--) {
+		uint8_t *value = (uint8_t *) (flipt_globalNamespace_values[i]);
+		if (value >= program && value < program + len && (*(value-3) & 0b111111) == OP_SKIP) {
+			flipt_globalNamespace_values[i] = (int) (globalFunctionSpace + globalFunctionSpace_top);
+			for (uint8_t *instr = value; *instr != OP_END;) {
+				uint8_t op = *instr & 0b111111;
+				uint8_t argsize = *instr >> 6;
+				
+				unsigned int v = 0;
+				if (argsize == 1) v = *(uint8_t *) (instr+1);
+				else if (argsize == 2) v = *(uint16_t *) (instr+1);
+				else if (argsize == 3) v = *(uint32_t *) (instr+1);
+				
+				int n = 1
+					+ (argsize > 0 ? 1 << (argsize-1) : 0)
+					+ (op == OP_PUSHSTR ? v : 0);
+				
+				while (n-- > 0) {
+					globalFunctionSpace[globalFunctionSpace_top++] = *instr++;
+				}
+			}
+		}
+	}
+}
+
+void mainTargetPutchar(int c) {
+    //ktao_printf(&mainTarget, "%i\n", c);
+    ktao_putGlyph(&mainTarget, c);
+}
 
 void kernel_main(multiboot_info_t* mbd, unsigned int magic) {
 	if(magic != MULTIBOOT_BOOTLOADER_MAGIC) kernelpanic("Multiboot magic number bad");
@@ -219,6 +229,9 @@ void kernel_main(multiboot_info_t* mbd, unsigned int magic) {
 	test_print(&sidebarTarget);
 
     ktao_print(&mainTarget, "type commands in the prompt below.\n\n");
+    
+    flipt_setupOpNames(flipt_opNames);
+    flipt_setOutputFunction(mainTargetPutchar);
 
 	while (1) {
 		char commandbuff[mainTarget.width-2];
@@ -236,5 +249,9 @@ void kernel_main(multiboot_info_t* mbd, unsigned int magic) {
 			ktao_printf(&mainTarget, "%i, ", flipt_globalStack[i]);
 		}
 		ktao_print(&mainTarget, "\n");
+		
+		cacheFliptFunctions(compiled, 127);
 	}
 }
+
+// ((.. 10% | 10/) (..) ??) :printnum

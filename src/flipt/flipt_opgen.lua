@@ -29,10 +29,6 @@ rebindlb
 rebindls
 rebindlw
 
-pushoffsetb
-pushoffsets
-pushoffsetw
-
 skip
 call !
 if ?

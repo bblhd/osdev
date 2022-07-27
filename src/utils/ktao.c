@@ -188,6 +188,8 @@ void ktao_vprintf(struct VGA_Target *target, const char *format, va_list va) {
 				ktao_printptr(target, va_arg(va, void*));
 			} else if (format[1] == 's') {
 				ktao_print(target, va_arg(va, char*));
+			} else if (format[1] == 'c') {
+				ktao_putGlyph(target, va_arg(va, int));
 			} else {
 				format += 1 + ktao_print1(target, format);
 				continue;
