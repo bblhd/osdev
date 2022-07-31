@@ -4,7 +4,6 @@
 #include <stddef.h>
 #include <stdint.h>
 
-void *memsetw(void *dest, uint16_t val, size_t count);
 void *memcpy(void *restrict dest, const void *restrict src, size_t n);
 
 size_t strlen(const char* str);

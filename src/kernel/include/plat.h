@@ -16,7 +16,7 @@ void pit_init(uint32_t frequency);
 void irq_install_handler(int irq, void (*handler)(void));
 
 #define plat_reboot() out8(0x64, 0xFE)
-#define plat_hide_cursor() out16(0x3D4,0x200A)
+#define plat_hide_cursor() out16(0x03D4,0x200A)
 
 void irq_register_handler(int irq, void (*handler)(x86_iframe_t*));
 void irq_unregister_handler(int irq);

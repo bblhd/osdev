@@ -1,6 +1,6 @@
 #include <x86.h>
 #include <plat.h>
-#include <ktao.h>
+#include <kterm.h>
 #include <keyboard.h>
 #include <multiboot.h>
 #include <test_print.h>
@@ -34,11 +34,8 @@ void sys_key_handler(x86_iframe_t* frame){
 	keyboard_sendKeyEvent(in8(0x60));
 }
 
-struct VGA_Target sidebarTarget;
-struct VGA_Target mainTarget;
-
 void sys_other_handler(x86_iframe_t* frame){
-	ktao_printf(&sidebarTarget, "IRQ %i\n", frame->vector-32);
+	kterm_printf("IRQ %i\n", frame->vector-32);
 }
 
 
@@ -58,85 +55,11 @@ int x86_pc_init() {
 
 struct multiboot_info multibootStorage;
 
-#define COMMANDMEM_LENGTH 20
-char commandMemory[COMMANDMEM_LENGTH][80];
-int commandMemory_head = 0;
 
-void commandPrompt(struct VGA_Target *target, char *buffer, int len) {
-	int historyCursor = commandMemory_head;
-	int cursor = 0;
-	buffer[cursor] = '\0';
-	
-	if (mainTarget.column > 0) ktao_print(&mainTarget, "\n");
-	
-	ktao_print(target, "> \ei_\ei\b");
-	char keycode = 0;
-	
-	while (keycode != '\n') {
-		asm volatile ("hlt"); //halts to give the cpu a rest
-		if (keyboard_open()) {
-			uint8_t scancode = keyboard_get();
-			keycode = keycodeFromScancode(scancode);
-			
-			if (scancode == us_scancode_directory[SCANCODED_UP] || scancode == us_scancode_directory[SCANCODED_DOWN]) {
-				if (scancode == us_scancode_directory[SCANCODED_UP]) {
-					if (mod(historyCursor - 1, COMMANDMEM_LENGTH) != commandMemory_head) {
-						historyCursor = mod(historyCursor - 1, COMMANDMEM_LENGTH);
-					}
-				} else if (scancode == us_scancode_directory[SCANCODED_DOWN]) {
-					if (historyCursor != commandMemory_head) {
-						historyCursor = mod(historyCursor + 1, COMMANDMEM_LENGTH);
-					}
-				}
-				memcpy(buffer, commandMemory[historyCursor], len);
-				cursor = strlen(buffer);
-			} else if (scancode == us_scancode_directory[SCANCODED_RIGHT]) {
-				if (cursor < len && buffer[cursor] != '\0') cursor++;
-			} else if (scancode == us_scancode_directory[SCANCODED_LEFT]) {
-				if (cursor > 0) cursor--;
-			} else if (keycode == 0x08) {
-				if (cursor > 0) cursor--;
-				buffer[cursor] = '\0';
-			} else if (keycode == 0x1B) {
-				plat_reboot();
-			} else if (keycode != '\n' && keycode != 0x00 && cursor < len) {
-				if (keyboard_modifier(MODIFIER_SHIFT) || keyboard_modifier(MODIFIER_CAPS)) {
-					keycode = keyboard_getCapital(keycode);
-				}
-				int i = strlen(buffer)+1;
-				buffer[i] = '\0';
-				for (; i > cursor-1; i--) {
-					buffer[i+1] = buffer[i];
-				}
-				buffer[cursor++] = keycode;
-			}
-			
-			ktao_clearBottomRow(target);
-			ktao_print(target, "> ");
-			int i = 0;
-			for (; buffer[i] != '\0' && i < cursor; i++) {
-				ktao_putGlyph(target, buffer[i]);
-			}
-			ktao_print(target, "\ei_\ei");
-			for (; buffer[i] != '\0' && i < len; i++) {
-				ktao_putGlyph(target, buffer[i]);
-			}
-		}
-	}
-	
-	memcpy(commandMemory[commandMemory_head], buffer, len);
-	commandMemory_head = mod(commandMemory_head + 1, COMMANDMEM_LENGTH);
-	commandMemory[commandMemory_head][0] = '\0';
-	
-	ktao_clearBottomRow(target);
-	ktao_print(target, "> ");
-	ktao_print(target, buffer);
-	ktao_newline(target);
-}
 
 char *flipt_opNames[64];
 
-void flipt_printBytecode(struct VGA_Target *target, uint8_t *compiled) {
+void flipt_printBytecode(uint8_t *compiled) {
 	for (int i = 0; compiled[i] != OP_END || compiled[i+1] != OP_END;) {
 		
 		int pos = i;
@@ -152,16 +75,16 @@ void flipt_printBytecode(struct VGA_Target *target, uint8_t *compiled) {
 		
 		if (argsize != 0b00) i += 1 << (argsize-1);
 		
-		ktao_printf(target, "%i: %i|%s[%u] ", compiled + pos, op, flipt_opNames[op], value);
+		kterm_printf("%i: %i|%s[%u] ", compiled + pos, op, flipt_opNames[op], value);
 		
 		if (op == OP_PUSHSTR) {
 			while (value-- > 0) {
-				ktao_printf(target, "%u, ", (unsigned int) compiled[i]);
+				kterm_printf("%u, ", (unsigned int) compiled[i]);
 				i++;
 			}
 		}
 		
-		ktao_printf(target, "\n");
+		kterm_print("\n");
 	}
 }
 
@@ -205,37 +128,15 @@ void runCommand(char *command) {
 	int *stackpointer = (int*)stack;
 	flipt_interpret(compiled, &stackpointer);
 	
-	//ktao_printf(&mainTarget, "= ");
+	//kterm_print("= ");
 	//for (int i = 0; i < 256; i++) {
-		//ktao_printf(&mainTarget, "%i, ", stack[i]);
+		//kterm_printf("%i, ", stack[i]);
 	//}
 	
 	cacheFliptFunctions(compiled, 128);
 }
 
-int ktao_print1(struct VGA_Target *target, const char *string);
-
-char mainTargetPutchar_buffer[6];
-int mainTargetPutchar_i = 0;
-
-void mainTargetPutchar(int c) {
-	mainTargetPutchar_buffer[mainTargetPutchar_i++] = c;
-	mainTargetPutchar_buffer[mainTargetPutchar_i] = '\0';
-	
-	int i = mainTargetPutchar_i;
-	char *b = mainTargetPutchar_buffer;
-	
-	if (
-		i == 1 && b[0] != 0x1b
-		|| i==2 && b[1] == 'i' && b[1] == 'r'
-		|| i==3 && b[1] == 'f' && b[1] == 'b'
-		|| i==4 && b[1] == 'g' && b[1] == 'c'
-	) {
-		ktao_print1(&mainTarget, mainTargetPutchar_buffer);
-		mainTargetPutchar_i = 0;
-		mainTargetPutchar_buffer[mainTargetPutchar_i] = '\0';
-	}
-}
+int kterm_print1(const char *string);
 
 int flipt_memorymapStorage[96];
 
@@ -254,31 +155,30 @@ void kernel_main(multiboot_info_t* mbd, unsigned int magic) {
 		*writeto++ = mmmt->type;
 		flipt_memorymapStorage[0]++;
 	}
-	flipt_external("mem", (int) flipt_memorymapStorage);
+	flipt_external("memterm", (int) flipt_memorymapStorage);
 
     if(X86_OK != x86_pc_init()) kernelpanic("Kernel initialisation failed");
+		
+	kterm_print("\eb4\efe");
+	kterm_clear();
 	
-	plat_hide_cursor();
+    kterm_printf("systemTick initialised to %i hz\n\n", SYSTEM_TICKS_PER_SEC);
 	
-	ktao_clearAll();
-	ktao_initialiseToGlobalVGA(&sidebarTarget, PC_VGA_WIDTH-22,0, 22,PC_VGA_HEIGHT);
-	ktao_initialiseToGlobalVGA(&mainTarget, 0,0, PC_VGA_WIDTH-22-2,PC_VGA_HEIGHT);
-    
-    ktao_printf(&mainTarget, "systemTick initialised to %i hz\n\n", SYSTEM_TICKS_PER_SEC);
-	
-	test_print(&sidebarTarget);
+	test_print();
+	kterm_newlineSoft();
+	test_printMemoryMap(&multibootStorage);
 
-    ktao_print(&mainTarget, "type commands in the prompt below.\n\n");
+    //kterm_print("type commands in the prompt below.\n\n");
     
-    flipt_setupOpNames(flipt_opNames);
-    flipt_setOutputFunction(mainTargetPutchar);
+    //flipt_setupOpNames(flipt_opNames);
+    //flipt_setOutputFunction(kterm_print1);
     
-	runCommand("((..)(.)??):print");
-	runCommand("(0|(..)(..10%48+|10/)??#):tostring");
+	//runCommand("((..)(.)??):print");
+	//runCommand("(0|(..)(..10%48+|10/)??#):tostring");
 
-	while (1) {
-		char commandbuff[mainTarget.width-2];
-		commandPrompt(&mainTarget, commandbuff, mainTarget.width-3);
-		runCommand(commandbuff);
-	}
+	//while (1) {
+		//char commandbuff[mainTarget.width-2];
+		//commandPrompt(&mainTarget, commandbuff, mainTarget.width-3);
+		//runCommand(commandbuff);
+	//}
 }

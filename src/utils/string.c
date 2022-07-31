@@ -1,15 +1,5 @@
 #include <string.h>
 
-void *memset(void *dest, uint16_t val, size_t count) {
-    uint16_t *d = dest;
-
-    while(count--){
-        *d++ = val;
-    }
-
-    return dest;
-}
-
 void *memcpy(void *dest, const void *src, size_t n) {
     uint8_t *d = dest;
     const uint8_t *s = src;
