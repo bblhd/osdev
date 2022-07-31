@@ -1,0 +1,41 @@
+
+.section .data
+	
+
+.globl flipt_interpret_asm
+.type flipt_interpret_asm, @function
+flipt_interpret_asm:
+	# edi is compiled, esi is stack, edx is namespace table (System V ABI)
+	xchg %edx, %esi
+	xchg %esx, %edi
+	
+	mov %eax, $0
+	# eax is error output (System V ABI)
+ret
+
+# need stack, namespace, and program
+# flipt ABI
+# eax-ecx : accumulators
+# edx : flipt stack pointer
+# esi : compiled program
+# edi : namespace table
+
+interpretFliptInstruction:
+	
+ret
+
+flipt_push:
+	cmp %ebx, %edi
+	jge flipt_push_dont
+		movw (%ebx), %eax
+		add %ebx, $4
+	flipt_push_dont:
+ret
+
+flipt_pop:
+	cmp %ebx, %esi
+	jle flipt_pop_dont
+		sub %ebx, $4
+		movw %eax, (%ebx)
+	flipt_pop_dont:
+ret

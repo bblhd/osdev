@@ -154,15 +154,9 @@ void compileNextExpression(char **sourceptr, void **outptr) {
 	} else if (*source == ')') {
 		source++;
 	} else {
-		uint8_t op = OP_VALUEOF;
-		if (source[0] == ':' && source[1] == ':') {
-			op = OP_REBIND;
-			source+=2;
-		} else if (source[0] == ':') {
-			op = OP_BIND;
-			source++;
-		} else if (source[0] == ';') {
-			op = OP_UNBIND;
+		uint8_t op = OP_GET;
+		if (source[0] == ':') {
+			op = OP_SET;
 			source++;
 		}
 		
@@ -179,7 +173,7 @@ void compileNextExpression(char **sourceptr, void **outptr) {
 			&& *source != ' ' && *source != '\n' && *source != '\t'
 			&& *source != '"'
 			&& *source != '-' && !(*source >= '0' && *source <= '9')
-			&& *source != ':' && *source != ';'
+			&& *source != ':'
 		) source++;
 		
 		int index = getVariableNameIndex(name, source-name+1);
@@ -203,9 +197,6 @@ void flipt_compile(char *source, void *out) {
 	writeSingleByte(&out, OP_END);
 }
 
-int flipt_globalStack[256];
-int flipt_globalStack_top = 0;
-
 int flipt_globalNamespace_names[256];
 int flipt_globalNamespace_values[256];
 int flipt_globalNamespace_top = 0;
@@ -216,18 +207,14 @@ int indexof(int id) {
 	}
 	return -1;
 }
+
 int valueof(int id) {
 	int index = indexof(id);
 	if (index >= 0) return flipt_globalNamespace_values[index];
 	else return 0;
 }
-void bind(int id, int value) {
-	flipt_globalNamespace_names[flipt_globalNamespace_top] = id;
-	flipt_globalNamespace_values[flipt_globalNamespace_top] = value;
-	flipt_globalNamespace_top++;
-}
-void unbind(int id) {
-	int index = indexof(id);
+
+void unbind(int index) {
 	if (index >= 0) {
 		for (int i = index; i < flipt_globalNamespace_top-1; i++) {
 			flipt_globalNamespace_names[i] = flipt_globalNamespace_names[i+1];
@@ -236,9 +223,16 @@ void unbind(int id) {
 		if (flipt_globalNamespace_top > 0) flipt_globalNamespace_top--;
 	}
 }
-void rebind(int id, int value) {
+
+void bind(int id, int value) {
 	int index = indexof(id);
-	if (index >= 0) flipt_globalNamespace_values[index] = value;
+	if (index < 0) {
+		if (value == 0) return;
+		index = flipt_globalNamespace_top++;
+		flipt_globalNamespace_names[index] = id;
+	}
+	if (value == 0) unbind(index);
+	else flipt_globalNamespace_values[index] = value;
 }
 
 void flipt_external(char *name, int value) {
@@ -246,22 +240,20 @@ void flipt_external(char *name, int value) {
 	bind(id, value);
 }
 
-void push(int value) {
-	if (flipt_globalStack_top < 255) {
-		flipt_globalStack[flipt_globalStack_top++] = value;
-	}
+void push(int **stack, int value) {
+	**stack = value;
+	++(*stack);
 }
-int pop() {
-	if (flipt_globalStack_top > 0) {
-		return flipt_globalStack[--flipt_globalStack_top];
-	}
-	return 0;
+int pop(int **stack) {
+	return *--*stack;
 }
-int peek() {
-	if (flipt_globalStack_top > 0) {
-		return flipt_globalStack[flipt_globalStack_top-1];
-	}
-	return 0;
+void swap(int *stack) {
+	int swap = stack[-1];
+	stack[-1] = stack[0];
+	stack[0] = swap;
+}
+int peek(int **stack) {
+	return *(*stack-1);
 }
 
 void dummyOutput(int) {}
@@ -272,7 +264,7 @@ void flipt_setOutputFunction(void (*func)(int)) {
 	output_function = func;
 }
 
-void flipt_interpret(uint8_t *bytecode) {
+void flipt_interpret(uint8_t *bytecode, int **stack) {
 	while (*bytecode != OP_END) {
 		uint8_t op = *bytecode & 0b111111;
 		uint8_t argsize = *bytecode >> 6;
@@ -282,84 +274,114 @@ void flipt_interpret(uint8_t *bytecode) {
 		if (argsize == 1) value = *(uint8_t *) bytecode;
 		else if (argsize == 2) value = *(uint16_t *) bytecode;
 		else if (argsize == 3) value = *(uint32_t *) bytecode;
-		
 		if (argsize > 0) bytecode += 1 << (argsize-1);
 		
-		if (op == OP_START) {
-			push((uint32_t) bytecode);
-			bytecode += value;
+		
+		union {
+			int operand;
+			uint8_t *body;
+		} a;
+		union {
+			uint8_t *cond;
+			uint8_t *elsebody;
+		} b;
+		
+		switch (op) {
+			case OP_START:
+				push(stack, (uint32_t) bytecode);
+				bytecode += value;
+			break;
 			
-		} else if (op == OP_PUSH) {
-			push(value);
-		} else if (op == OP_PUSHN) {
-			push(-value);
-		} else if (op == OP_PUSHSTR) {
-			for (int i = value-1; i >= 0; i--) push(bytecode[i]);
-			bytecode+=value;
+			case OP_PUSH:
+				push(stack, value);
+			break;
+			case OP_PUSHN:
+				push(stack, -value);
+			break;
+			case OP_PUSHSTR:
+				for (int i = value-1; i >= 0; i--) {
+					push(stack, bytecode[i]);
+				}
+				bytecode+=value;
+			break;
 			
-		} else if (op == OP_VALUEOF) {
-			push(valueof(value));
-		} else if (op == OP_BIND) {
-			bind(value, pop());
-		} else if (op == OP_UNBIND) {
-			unbind(value);
-		} else if (op == OP_REBIND) {
-			rebind(value, pop());
+			case OP_GET:
+				push(stack, valueof(value));
+			break;
+			case OP_SET:
+				bind(value, pop(stack));
+			break;
 			
-		} else if (op == OP_ADD) {
-			push(pop() + pop());
-		} else if (op == OP_SUB) {
-			int b = pop(); int a = pop();
-			push(a - b);
-		} else if (op == OP_MULT) {
-			push(pop() * pop());
-		} else if (op == OP_DIV) {
-			int b = pop(); int a = pop();
-			push(a / b);
-		} else if (op == OP_MOD) {
-			int b = pop(); int a = pop();
-			push(a % b);
+			case OP_ADD:
+				push(stack, pop(stack) + pop(stack));
+			break;
+			case OP_SUB:
+				a.operand = pop(stack);
+				push(stack, pop(stack) - a.operand);
+			break;
+			case OP_MULT:
+				push(stack, pop(stack) * pop(stack));
+			break;
+			case OP_DIV:
+				a.operand = pop(stack);
+				push(stack, pop(stack) / a.operand);
+			break;
+			case OP_MOD:
+				a.operand = pop(stack);
+				push(stack, pop(stack) % a.operand);
+			break;
 			
-		} else if (op == OP_DUP) {
-			push(peek());
-		} else if (op == OP_DEL) {
-			pop();
-		} else if (op == OP_SWAP) {
-			int b = pop(); int a = pop();
-			push(b);
-			push(a);
-		} else if (op == OP_OUTPUT) {
-			output_function(pop());
-		} else if (op == OP_CALL) {
-			flipt_interpret((uint8_t *) pop());
+			case OP_DUP:
+				push(stack, peek(stack));
+			break;
+			case OP_DEL:
+				pop(stack);
+			break;
+			case OP_SWAP:
+				swap(*stack);
+			break;
 			
-		} else if (op == OP_DEREFERENCE) {
-			push(*(int *) pop());
+			case OP_OUTPUT:
+				output_function(pop(stack));
+			break;
 			
-		} else if (op == OP_IF) {
-			uint8_t *body = (uint8_t *) pop();
+			case OP_LOAD:
+				push(stack, *(int *) pop(stack));
+			break;
+			case OP_STORE:
+				*(int *) pop(stack) = pop(stack);
+			break;
 			
-			if (pop()) {
-				flipt_interpret(body);
-			}
-		} else if (op == OP_IFELSE) {
-			uint8_t *thenbody = (uint8_t *) pop();
-			uint8_t *elsebody = (uint8_t *) pop();
-			
-			if (pop()) {
-				flipt_interpret(thenbody);
-			} else {
-				flipt_interpret(elsebody);
-			}
-		} else if (op == OP_WHILE) {
-			uint8_t *body = (uint8_t *) pop();
-			uint8_t *condition = (uint8_t *) pop();
-			
-			flipt_interpret(condition);
-			while (pop()) {
-				flipt_interpret(body);
-				flipt_interpret(condition);
-			}
+			case OP_CALL:
+				flipt_interpret((uint8_t *) pop(stack), stack);
+			break;
+			case OP_IF:
+				a.body = (uint8_t *) pop(stack);
+				
+				if (pop(stack)) {
+					flipt_interpret(a.body, stack);
+				}
+			break;
+			case OP_WHILE:
+				a.body = (uint8_t *) pop(stack);
+				b.cond = (uint8_t *) pop(stack);
+				
+				flipt_interpret(b.cond, stack);
+				while (pop(stack)) {
+					flipt_interpret(a.body, stack);
+					flipt_interpret(b.cond, stack);
+				}
+			break;
+			case OP_IFELSE: 
+				a.body = (uint8_t *) pop(stack);
+				b.elsebody = (uint8_t *) pop(stack);
+				
+				if (pop(stack)) {
+					flipt_interpret(a.body, stack);
+				} else {
+					flipt_interpret(b.elsebody, stack);
+				}
+			break;
 		}
 	}
 }

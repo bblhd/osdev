@@ -104,8 +104,9 @@ void commandPrompt(struct VGA_Target *target, char *buffer, int len) {
 					keycode = keyboard_getCapital(keycode);
 				}
 				int i = strlen(buffer)+1;
-				for (; i > cursor; i--) {
-					buffer[i] = buffer[i-1];
+				buffer[i] = '\0';
+				for (; i > cursor-1; i--) {
+					buffer[i+1] = buffer[i];
 				}
 				buffer[cursor++] = keycode;
 			}
@@ -197,11 +198,18 @@ void cacheFliptFunctions(uint8_t *program, int len) {
 }
 
 void runCommand(char *command) {
-	flipt_globalStack_top = 0;
 	uint8_t compiled[128];
 
 	flipt_compile(command, (void *) compiled);
-	flipt_interpret(compiled);
+	int stack[256];
+	int *stackpointer = (int*)stack;
+	flipt_interpret(compiled, &stackpointer);
+	
+	//ktao_printf(&mainTarget, "= ");
+	//for (int i = 0; i < 256; i++) {
+		//ktao_printf(&mainTarget, "%i, ", stack[i]);
+	//}
+	
 	cacheFliptFunctions(compiled, 128);
 }
 
@@ -246,7 +254,7 @@ void kernel_main(multiboot_info_t* mbd, unsigned int magic) {
 		*writeto++ = mmmt->type;
 		flipt_memorymapStorage[0]++;
 	}
-	flipt_external("memorymap", (int) flipt_memorymapStorage);
+	flipt_external("mem", (int) flipt_memorymapStorage);
 
     if(X86_OK != x86_pc_init()) kernelpanic("Kernel initialisation failed");
 	

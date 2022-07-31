@@ -69,3 +69,5 @@ void irq_register_handler(int irq, IRQHandler handler) {
 void irq_unregister_handler(int irq) {
     irq_routines[irq & 0b1111] = NULL;
 }
+
+//void send_irq

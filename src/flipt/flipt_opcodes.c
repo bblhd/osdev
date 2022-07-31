@@ -25,13 +25,43 @@ struct {
 	{.symbol="~", .opcode=OP_NOT},
 	{.symbol="/", .opcode=OP_DIV},
 	{.symbol="%", .opcode=OP_MOD},
-	{.symbol="@", .opcode=OP_DEREFERENCE},
+	{.symbol="@", .opcode=OP_LOAD},
+	{.symbol="$", .opcode=OP_STORE},
 	{.symbol="", .opcode=OP_END},
 };
+
+//xxxxxxLL
+//L -> 1<<L // size of either name bytes length
+//xxxSSRLL
+//R -> boolean(isarray)
+//L -> 1<<L // size of either array length bytes or just length
+//S:
+	//[add 0 zeros every 1] 8in, 8out
+	//[add 1 zeros every 1] 8in, 16out
+	//[add 3 zeros every 1] 8in, 32out
+	//[add 2 zeros every 2] 16in, 32out
+
 
 void flipt_setupOpNames(char *names[]) {
 	names[OP_END] = "end";
 	names[OP_START] = "start";
+	
+	names[OP_GET] = "get";
+	names[OP_SET] = "set";
+	
+	names[OP_LOAD] = "load";
+	names[OP_STORE] = "store";
+	
+	names[OP_INPUT] = "output";
+	names[OP_OUTPUT] = "output";
+	
+	names[OP_PUSH] = "push";
+	names[OP_PUSHN] = "push_negative";
+	names[OP_PUSHSTR] = "push_string";
+	
+	names[OP_DEL] = "delete";
+	names[OP_SWAP] = "swap";
+	names[OP_DUP] = "duplicate";
 	
 	names[OP_CALL] = "call";
 	names[OP_IF] = "if";
@@ -51,20 +81,4 @@ void flipt_setupOpNames(char *names[]) {
 	names[OP_MULT] = "mult";
 	names[OP_DIV] = "div";
 	names[OP_MOD] = "mod";
-	
-	names[OP_DEL] = "delete";
-	names[OP_SWAP] = "swap";
-	names[OP_DUP] = "duplicate";
-	names[OP_OUTPUT] = "output";
-	
-	names[OP_PUSH] = "push";
-	names[OP_PUSHN] = "push_negative";
-	names[OP_PUSHSTR] = "push_string";
-	
-	names[OP_VALUEOF] = "valueof";
-	names[OP_BIND] = "bind";
-	names[OP_UNBIND] = "unbind";
-	names[OP_REBIND] = "rebind";
-	
-	names[OP_DEREFERENCE] = "dereference";
 }

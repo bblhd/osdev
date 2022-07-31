@@ -109,7 +109,7 @@ done
 
 if [ $shouldlink == "yes" ]; then
 	echo -ne "\033[95m[linking]\033[0m object files -> $BINNAME\n"
-	if ! i686-elf-ld -T tools/linker.ld $LDFLAGS -o $BINNAME $O_FILES; then
+	if ! i686-elf-ld -T linker.ld $LDFLAGS -o $BINNAME $O_FILES; then
 		FAILED="yes"
 	fi
 fi
