@@ -28,21 +28,19 @@ int constrain(int i) {
 }
 
 int getPreviousHistoryPrompt(int this) {
-	if (promptMemory[constrain(this-1)] == '\0') {
-		do {
-			this = constrain(this-1);
-		} while (promptMemory[constrain(this-1)] != '\0');
-	}
-	return -1;
+	if (this == promptMemory_bot) return this;
+	do {
+		this = constrain(this-1);
+	} while (promptMemory[constrain(this-1)] != '\0');
+	return this;
 }
 
 int getNextHistoryPrompt(int this) {
-	if (promptMemory[constrain(this-1)] == '\0') {
-		do {
-			this = constrain(this+1);
-		} while (promptMemory[constrain(this-1)] != '\0');
-	}
-	return -1;
+	if (this == promptMemory_top) return this;
+	do {
+		this = constrain(this+1);
+	} while (promptMemory[constrain(this-1)] != '\0');
+	return this;
 }
 
 void setVGA(int i, unsigned char c) {
@@ -58,7 +56,7 @@ void update_cursor(int x) {
 	out8(0x3D5, (uint8_t) (pos >> 8 & 0x00FF));
 }
 
-void drawPromptTextTo(int cursor) {
+void drawPromptText(int cursor) {
 	int width = vga_width - messageSize - 1;
 	int len = cursor;
 	while (promptMemory[constrain(promptMemory_top + len)] != '\0') len++;
@@ -102,12 +100,30 @@ void kprompt_prompt(void (*event)(char *)) {
 			} else if (scancode == us_scancode_directory[SCANCODED_RIGHT]) {
 				if (promptMemory[constrain(promptMemory_top + cursor)] != '\0') cursor++;
 			} else if (scancode == us_scancode_directory[SCANCODED_UP]) {
-				if (promptMemorySeek != promptMemory_bot) {
-					promptMemorySeek = getPreviousHistoryPrompt(promptMemorySeek);
+				promptMemorySeek = getPreviousHistoryPrompt(promptMemorySeek);
+				
+				int i;
+				for (i = 0; promptMemory[constrain(promptMemorySeek + i)] != '\0'; i++) {
+					promptMemory[constrain(promptMemory_top + i)] = promptMemory[constrain(promptMemorySeek + i)];
 				}
+				promptMemory[constrain(promptMemory_top + i)] = '\0';
+				
+				cursor = 0;
+				while (promptMemory[constrain(promptMemory_top + cursor)] != '\0') cursor++;
 			} else if (scancode == us_scancode_directory[SCANCODED_DOWN]) {
-				if (promptMemorySeek != promptMemory_top) {
-					promptMemorySeek = getNextHistoryPrompt(promptMemorySeek);
+				promptMemorySeek = getNextHistoryPrompt(promptMemorySeek);
+				if (promptMemorySeek == promptMemory_top) {
+					promptMemory[constrain(promptMemory_top)] = '\0';
+					cursor = 0;
+				} else {
+					int i;
+					for (i = 0; promptMemory[constrain(promptMemorySeek + i)] != '\0'; i++) {
+						promptMemory[constrain(promptMemory_top + i)] = promptMemory[constrain(promptMemorySeek + i)];
+					}
+					promptMemory[constrain(promptMemory_top + i)] = '\0';
+					
+					cursor = 0;
+					while (promptMemory[constrain(promptMemory_top + cursor)] != '\0') cursor++;
 				}
 			} else if (keycode == 0x08) {
 				for (int i = cursor; promptMemory[constrain(promptMemory_top + i - 1)] != '\0'; i++) {
@@ -131,17 +147,17 @@ void kprompt_prompt(void (*event)(char *)) {
 				}
 				promptMemory[constrain(promptMemory_top + cursor)] = keycode;
 				cursor++;
-				if (constrain(promptMemory_top+cursor) >= promptMemory_bot) {
+				if (constrain(promptMemory_top+cursor+1) == promptMemory_bot) {
 					promptMemory_bot = getNextHistoryPrompt(promptMemory_bot);
 				}
 			}
 		} while(keyboard_open());
-		drawPromptTextTo(cursor);
+		drawPromptText(cursor);
 	} else {
 		asm volatile ("hlt"); //halts to give the cpu a rest
 	}
 	
-	drawPromptTextTo(0);
+	drawPromptText(0);
 	
 	int width = vga_width - messageSize - 1;
 	int len = cursor;
@@ -152,8 +168,7 @@ void kprompt_prompt(void (*event)(char *)) {
 		setVGA(vga_width - 3, '.');
 	}
 	
-	promptMemory_top = getNextHistoryPrompt(promptMemory_top);
-	if (promptMemory_top > promptMemory_bot) promptMemory_bot = getNextHistoryPrompt(promptMemory_bot);
-	
 	kterm_newline();
+	
+	promptMemory_top += len+1;
 }
