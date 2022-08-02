@@ -1,8 +1,10 @@
 #include <x86.h>
 #include <plat.h>
-#include <kterm.h>
 #include <keyboard.h>
 #include <multiboot.h>
+
+#include <kterm.h>
+#include <kprompt.h>
 #include <test_print.h>
 #include <flipt.h>
 
@@ -168,7 +170,7 @@ void kernel_main(multiboot_info_t* mbd, unsigned int magic) {
 	kterm_newlineSoft();
 	test_printMemoryMap(&multibootStorage);
 
-    //kterm_print("type commands in the prompt below.\n\n");
+    kterm_print("type commands in the prompt below.\n\n");
     
     //flipt_setupOpNames(flipt_opNames);
     //flipt_setOutputFunction(kterm_print1);
@@ -176,9 +178,7 @@ void kernel_main(multiboot_info_t* mbd, unsigned int magic) {
 	//runCommand("((..)(.)??):print");
 	//runCommand("(0|(..)(..10%48+|10/)??#):tostring");
 
-	//while (1) {
-		//char commandbuff[mainTarget.width-2];
-		//commandPrompt(&mainTarget, commandbuff, mainTarget.width-3);
-		//runCommand(commandbuff);
-	//}
+	while (1) {
+		kprompt_prompt(runCommand);
+	}
 }
