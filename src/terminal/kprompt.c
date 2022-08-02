@@ -13,6 +13,8 @@ extern const int vga_width;
 extern const int vga_height;
 extern uint8_t colour;
 
+// none of this code is very good, I apologise
+
 int messageSize = 2;
 char *promptMessage = ">";
 
@@ -107,7 +109,19 @@ void kprompt_prompt(void (*event)(char *)) {
 				if (promptMemorySeek != promptMemory_top) {
 					promptMemorySeek = getNextHistoryPrompt(promptMemorySeek);
 				}
+			} else if (keycode == 0x08) {
+				for (int i = cursor; promptMemory[constrain(promptMemory_top + i - 1)] != '\0'; i++) {
+					promptMemory[constrain(promptMemory_top + i-1)] = promptMemory[constrain(promptMemory_top + i)];
+				}
+				
+				if (cursor > 0) cursor--;
+			} else if (keycode == 0x1B) {
+				plat_reboot();
 			} else if (keycode != '\n' && keycode != '\0') {
+				if (keyboard_modifier(MODIFIER_SHIFT) || keyboard_modifier(MODIFIER_CAPS)) {
+					keycode = keyboard_getCapital(keycode);
+				}
+				
 				int i = cursor;
 				while (promptMemory[constrain(promptMemory_top + i)] != '\0') i++;
 				
