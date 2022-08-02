@@ -10,10 +10,10 @@ void *memcpy(void *dest, const void *src, size_t n) {
 }
 
 void *memcpyr(void *dest, const void *src, size_t n) {
-    uint8_t *d = dest+n;
-    const uint8_t *s = src+n;
+    uint8_t *d = dest;
+    const uint8_t *s = src;
 
-    while(n--) *d-- = *s--;
+    while(n--) d[n] = s[n];
 
     return dest;
 }
