@@ -9,6 +9,15 @@ void *memcpy(void *dest, const void *src, size_t n) {
     return dest;
 }
 
+void *memcpyr(void *dest, const void *src, size_t n) {
+    uint8_t *d = dest+n;
+    const uint8_t *s = src+n;
+
+    while(n--) *d-- = *s--;
+
+    return dest;
+}
+
 size_t strlen(const char* str) {
 	size_t len = 0;
 	while (str[len]) len++;

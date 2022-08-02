@@ -5,6 +5,7 @@
 #include <stdint.h>
 
 void *memcpy(void *restrict dest, const void *restrict src, size_t n);
+void *memcpyr(void *restrict dest, const void *restrict src, size_t n);
 
 size_t strlen(const char* str);
 int streq(char *a, char *b);

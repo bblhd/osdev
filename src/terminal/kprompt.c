@@ -13,33 +13,34 @@ extern const int vga_width;
 extern const int vga_height;
 extern uint8_t colour;
 
+typedef _Bool bool;
+
 // none of this code is very good, I apologise
 
 int messageSize = 2;
 char *promptMessage = ">";
 
-#define PROMPTMEM_LENGTH 1024
-char promptMemory[PROMPTMEM_LENGTH];
-char *prompts[32];
-int promptMemory_bot = 0, promptMemory_top = 0;
+#define PROMPTHISTORY_LENGTH 1024
+char promptHistory[PROMPTHISTORY_LENGTH];
+int promptBufferStart = 0;
 
-int constrain(int i) {
-	return i & 0b1111111111;
+void removeOldestHistory() {
+	int oldestLength = strlen(promptHistory);
+	int bufferLength = strlen(promptHistory + promptBufferStart);
+	memcpy(promptHistory, promptHistory + oldestLength, promptBufferStart + bufferLength - oldestLength);
+	promptBufferStart -= oldestLength;
 }
 
-int getPreviousHistoryPrompt(int this) {
-	if (this == promptMemory_bot) return this;
-	do {
-		this = constrain(this-1);
-	} while (promptMemory[constrain(this-1)] != '\0');
+
+int previousHistory(int this) {
+	if (this > 0) this--;
+	while (this > 0 && promptHistory[this-1] != '\0') this--;
 	return this;
 }
 
-int getNextHistoryPrompt(int this) {
-	if (this == promptMemory_top) return this;
-	do {
-		this = constrain(this+1);
-	} while (promptMemory[constrain(this-1)] != '\0');
+int nextHistory(int this) {
+	if (this < promptBufferStart) this++;
+	while (this < promptBufferStart && promptHistory[this-1] != '\0') this++;
 	return this;
 }
 
@@ -51,105 +52,126 @@ void update_cursor(int x) {
 	uint16_t pos = vga_width * (vga_height-1) + x;
  
 	out8(0x3D4, 0x0F);
-	out8(0x3D5, (uint8_t) (pos & 0xFF));
+	out8(0x3D5, pos & 0xff);
 	out8(0x3D4, 0x0E);
-	out8(0x3D5, (uint8_t) (pos >> 8 & 0x00FF));
+	out8(0x3D5, (pos >> 8) & 0xff);
 }
 
 void drawPromptText(int cursor) {
 	int width = vga_width - messageSize - 1;
-	int len = cursor;
-	while (promptMemory[constrain(promptMemory_top + len)] != '\0') len++;
-	int start = max(0, min(len - width, cursor - (width>>1)));
+	int len = strlen(promptHistory + promptBufferStart);
 	
-	int i = 0;
-	for (; i < width && promptMemory[constrain(promptMemory_top+start+i)] != '\0'; i++) {
-		setVGA(messageSize + i, promptMemory[constrain(promptMemory_top + start + i)]);
+	int start = cursor - (width>>1);
+	if (start > len - (width)) {
+		start = len - width;
+	}
+	if (start < 0) {
+		start = 0;
 	}
 	
-	for (; i < width; i++) {
-		setVGA(messageSize + i, 0);
+	{
+		int i = 0;
+		while (i < width && promptHistory[promptBufferStart + start + i] != '\0') {
+			char v = promptHistory[promptBufferStart + start + i];
+			setVGA(messageSize + i++, v);
+		}
+		while (i < width) {
+			setVGA(messageSize + i++, 0);
+		}
 	}
 	
-	int visualCursor = len < width || cursor < width>>1 ? cursor : cursor > len - (width>>1) ? cursor - len + width: width>>1;
-	update_cursor(visualCursor+messageSize);
+	
+	int visualCursor = width>>1;
+	if (len < width || cursor < visualCursor) {
+		visualCursor = cursor;
+	} else if (cursor > len - visualCursor) {
+		visualCursor = cursor - len + width;
+	}
+	update_cursor(messageSize + visualCursor);
 }
 
 void kprompt_prompt(void (*event)(char *)) {
 	kterm_newlineSoft();
-	
-	int cursor = 0;
-	promptMemory[constrain(promptMemory_top + cursor)] = '\0';
-	update_cursor(messageSize);
-	
 	for (int i = 0; promptMessage[i] != '\0'; i++) {
 		setVGA(i, promptMessage[i]);
 	}
+	update_cursor(messageSize);
 	
-	int promptMemorySeek = promptMemory_top;
+	int cursor = 0;
+	int promptHistorySeek = promptBufferStart;
+	promptHistory[promptBufferStart] = '\0';
 	
 	char keycode = 0;
-	
 	while (keycode != '\n') if (keyboard_open()) {
 		do {
 			uint8_t scancode = keyboard_get();
 			keycode = keycodeFromScancode(scancode);
 			
-			if (scancode == us_scancode_directory[SCANCODED_LEFT]) {
-				if (cursor > 0) cursor--;
-			} else if (scancode == us_scancode_directory[SCANCODED_RIGHT]) {
-				if (promptMemory[constrain(promptMemory_top + cursor)] != '\0') cursor++;
-			} else if (scancode == us_scancode_directory[SCANCODED_UP]) {
-				promptMemorySeek = getPreviousHistoryPrompt(promptMemorySeek);
-				
-				int i;
-				for (i = 0; promptMemory[constrain(promptMemorySeek + i)] != '\0'; i++) {
-					promptMemory[constrain(promptMemory_top + i)] = promptMemory[constrain(promptMemorySeek + i)];
-				}
-				promptMemory[constrain(promptMemory_top + i)] = '\0';
-				
-				cursor = 0;
-				while (promptMemory[constrain(promptMemory_top + cursor)] != '\0') cursor++;
-			} else if (scancode == us_scancode_directory[SCANCODED_DOWN]) {
-				promptMemorySeek = getNextHistoryPrompt(promptMemorySeek);
-				if (promptMemorySeek == promptMemory_top) {
-					promptMemory[constrain(promptMemory_top)] = '\0';
-					cursor = 0;
-				} else {
-					int i;
-					for (i = 0; promptMemory[constrain(promptMemorySeek + i)] != '\0'; i++) {
-						promptMemory[constrain(promptMemory_top + i)] = promptMemory[constrain(promptMemorySeek + i)];
-					}
-					promptMemory[constrain(promptMemory_top + i)] = '\0';
-					
-					cursor = 0;
-					while (promptMemory[constrain(promptMemory_top + cursor)] != '\0') cursor++;
-				}
-			} else if (keycode == 0x08) {
-				for (int i = cursor; promptMemory[constrain(promptMemory_top + i - 1)] != '\0'; i++) {
-					promptMemory[constrain(promptMemory_top + i-1)] = promptMemory[constrain(promptMemory_top + i)];
-				}
-				
-				if (cursor > 0) cursor--;
-			} else if (keycode == 0x1B) {
-				plat_reboot();
-			} else if (keycode != '\n' && keycode != '\0') {
+			if (keycode >= 0x20 && keycode != 127) {
 				if (keyboard_modifier(MODIFIER_SHIFT) || keyboard_modifier(MODIFIER_CAPS)) {
 					keycode = keyboard_getCapital(keycode);
 				}
+				int len = strlen(promptHistory + promptBufferStart);
 				
-				int i = cursor;
-				while (promptMemory[constrain(promptMemory_top + i)] != '\0') i++;
+				if (promptBufferStart + cursor + len >= PROMPTHISTORY_LENGTH) {
+					removeOldestHistory();
+				}
 				
-				promptMemory[constrain(promptMemory_top + i)] = '\0';
-				for (; i != cursor - 1; i--) {
-					promptMemory[constrain(promptMemory_top + i+1)] = promptMemory[constrain(promptMemory_top + i)];
+				memcpyr(
+					promptHistory + promptBufferStart + cursor + 1,
+					promptHistory + promptBufferStart + cursor,
+					len + 1
+				);
+				
+				promptHistory[promptBufferStart + cursor++] = keycode;
+				
+			} else if (scancode == us_scancode_directory[SCANCODED_LEFT]) {
+				
+				if (cursor > 0) cursor--;
+				
+			} else if (scancode == us_scancode_directory[SCANCODED_RIGHT]) {
+				
+				if (promptHistory[promptBufferStart + cursor] != '\0') {
+					cursor++;
 				}
-				promptMemory[constrain(promptMemory_top + cursor)] = keycode;
-				cursor++;
-				if (constrain(promptMemory_top+cursor+1) == promptMemory_bot) {
-					promptMemory_bot = getNextHistoryPrompt(promptMemory_bot);
+				
+			} else if (scancode == us_scancode_directory[SCANCODED_UP] || scancode == us_scancode_directory[SCANCODED_DOWN]) {
+				
+				if (scancode == us_scancode_directory[SCANCODED_UP]) {
+					promptHistorySeek = previousHistory(promptHistorySeek);
+				} else if (scancode == us_scancode_directory[SCANCODED_DOWN]) {
+					promptHistorySeek = nextHistory(promptHistorySeek);
 				}
+				
+				if (promptHistorySeek == promptBufferStart) {
+					promptHistory[promptBufferStart] = '\0';
+					cursor = 0;
+				} else {
+					int len = strlen(promptHistory + promptHistorySeek);
+					
+					if (promptBufferStart + len >= PROMPTHISTORY_LENGTH) {
+						removeOldestHistory();
+					}
+					
+					memcpy(
+						promptHistory + promptBufferStart,
+						promptHistory + promptHistorySeek,
+						len + 1
+					);
+					
+					cursor = len;
+				}
+			} else if (keycode == 0x08) {
+				if (cursor > 0) {
+					memcpy(
+						promptHistory + promptBufferStart + cursor - 1,
+						promptHistory + promptBufferStart + cursor,
+						strlen(promptHistory + promptBufferStart)
+					);
+					cursor--;
+				}
+			} else if (keycode == 0x1B) {
+				plat_reboot();
 			}
 		} while(keyboard_open());
 		drawPromptText(cursor);
@@ -160,8 +182,7 @@ void kprompt_prompt(void (*event)(char *)) {
 	drawPromptText(0);
 	
 	int width = vga_width - messageSize - 1;
-	int len = cursor;
-	while (promptMemory[constrain(promptMemory_top + len)] != '\0') len++;
+	int len = strlen(promptHistory + promptBufferStart);
 	if (len > width) {
 		setVGA(vga_width - 1, '.');
 		setVGA(vga_width - 2, '.');
@@ -170,5 +191,7 @@ void kprompt_prompt(void (*event)(char *)) {
 	
 	kterm_newline();
 	
-	promptMemory_top += len+1;
+	event(promptHistory + promptBufferStart);
+	
+	promptBufferStart += len+1;
 }

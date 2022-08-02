@@ -138,7 +138,11 @@ void runCommand(char *command) {
 	cacheFliptFunctions(compiled, 128);
 }
 
-int kterm_print1(const char *string);
+void kterm_print1(char);
+
+void ktermPrint1Int(int x) {
+	kterm_print1(x & 0xff);
+}
 
 int flipt_memorymapStorage[96];
 
@@ -173,10 +177,10 @@ void kernel_main(multiboot_info_t* mbd, unsigned int magic) {
     kterm_print("type commands in the prompt below.\n\n");
     
     //flipt_setupOpNames(flipt_opNames);
-    //flipt_setOutputFunction(kterm_print1);
+    flipt_setOutputFunction(ktermPrint1Int);
     
-	//runCommand("((..)(.)??):print");
-	//runCommand("(0|(..)(..10%48+|10/)??#):tostring");
+	runCommand("((..)(.)??):print");
+	runCommand("(0|(..)(..10%48+|10/)??#):tostring");
 
 	while (1) {
 		kprompt_prompt(runCommand);
