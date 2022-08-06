@@ -357,13 +357,13 @@ void flipt_interpret(uint8_t *bytecode, int **stack, int *variables) {
 			} else if (op == OP_EQ) {
 				push(stack, pop(stack) == pop(stack));
 			} else if (op == OP_GT) {
-				push(stack, pop(stack) > pop(stack));
-			} else if (op == OP_LT) {
 				push(stack, pop(stack) < pop(stack));
+			} else if (op == OP_LT) {
+				push(stack, pop(stack) > pop(stack));
 			} else if (op == OP_GE) {
-				push(stack, pop(stack) >= pop(stack));
-			} else if (op == OP_LE) {
 				push(stack, pop(stack) <= pop(stack));
+			} else if (op == OP_LE) {
+				push(stack, pop(stack) >= pop(stack));
 				
 			} else if (op == OP_ADD) {
 				push(stack, pop(stack) + pop(stack));

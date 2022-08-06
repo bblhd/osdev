@@ -182,12 +182,11 @@ void kernel_main(multiboot_info_t* mbd, unsigned int magic) {
 	kterm_print("\eB1\eFe\eJ");
 	
     kterm_printf("systemTick initialised to %i hz\n\n", SYSTEM_TICKS_PER_SEC);
-	
-	test_print();
-	kterm_newlineSoft();
 	test_printMemoryMap(&multibootStorage);
+	
+    kterm_print("\nHi, welcome to my WIP operating system.\n\n");
 
-    kterm_print("type commands in the prompt below.\n\n");
+    kterm_print("Type commands in the prompt below.\n\n");
     
     //flipt_setOutputFunction(ktermPrint1Int);
     
