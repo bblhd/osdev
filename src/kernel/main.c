@@ -57,83 +57,96 @@ int x86_pc_init() {
 
 struct multiboot_info multibootStorage;
 
-
-
-char *flipt_opNames[64];
-
 void flipt_printBytecode(uint8_t *compiled) {
-	for (int i = 0; compiled[i] != OP_END || compiled[i+1] != OP_END;) {
-		
+	for (int i = 0; compiled[i] != OP_END || compiled[i-1] != OP_END;) {
 		int pos = i;
-		
-		uint8_t op = compiled[i] & 0b111111;
-		uint8_t argsize = compiled[i] >> 6;
-		i++;
-		
-		unsigned int value = 0;
-		if (argsize == 0b01) value = *(uint8_t *) (compiled+i);
-		else if (argsize == 0b10) value = *(uint16_t *) (compiled+i);
-		else if (argsize == 0b11) value = *(uint32_t *) (compiled+i);
-		
-		if (argsize != 0b00) i += 1 << (argsize-1);
-		
-		kterm_printf("%i: %i|%s[%u] ", compiled + pos, op, flipt_opNames[op], value);
-		
-		if (op == OP_PUSHSTR) {
-			while (value-- > 0) {
-				kterm_printf("%u, ", (unsigned int) compiled[i]);
-				i++;
+		if (compiled[i] >= 0b10000000) {
+			uint8_t ext_op = compiled[i] & 0b111;
+			unsigned int value = 0;
+			
+			if (compiled[i] >> 5 == 0b111) {
+				uint8_t argsize = (compiled[i] >> 3) & 0b11;
+				
+				i += 1;
+				
+				if (argsize == 0b00) value = *(uint8_t *) (compiled+i);
+				else if (argsize == 0b01) value = *(uint16_t *) (compiled+i);
+				else if (argsize == 0b10) value = *(uint32_t *) (compiled+i);
+				
+				i += 1<<argsize;
+			} else {
+				value = (compiled[i] >> 3) & 0b1111;
+				i += 1;
 			}
+			
+			kterm_printf("%i: e%u %u ", pos, ext_op, value);
+		} else {
+			uint8_t op = compiled[i] & 0b1111111;
+			
+			kterm_printf("%i: %u ", pos, op);
+			
+			i += 1;	
+			
+			if (op == OP_STRING) {
+				while (compiled[i] != '\0') {
+					kterm_printf("%c", compiled[i]);
+					i++;
+				}
+			}		
 		}
-		
 		kterm_print("\n");
 	}
 }
 
-uint8_t globalFunctionSpace[512];
-int globalFunctionSpace_top = 0;
+//uint8_t globalFunctionSpace[512];
+//int globalFunctionSpace_top = 0;
 
 void cacheFliptFunctions(uint8_t *program, int len) {
-	for (int i = flipt_globalNamespace_top-1; i >= 0; i--) {
-		uint8_t *start = (uint8_t *) (flipt_globalNamespace_values[i]);
-		if (start >= program && start < program + len) {
-			uint8_t *instr = start;
-			while (*instr != OP_END) {
-				uint8_t op = *instr & 0b111111;
-				uint8_t argsize = *instr >> 6;
+	//for (int i = flipt_globalNamespace_top-1; i >= 0; i--) {
+		//uint8_t *start = (uint8_t *) (flipt_globalNamespace_values[i]);
+		//if (start >= program && start < program + len) {
+			//uint8_t *instr = start;
+			//while (*instr != OP_END) {
+				//uint8_t op = *instr & 0b111111;
+				//uint8_t argsize = *instr >> 6;
 				
-				unsigned int v = 0;
-				if (argsize == 1) v = *(uint8_t *) (instr+1);
-				else if (argsize == 2) v = *(uint16_t *) (instr+1);
-				else if (argsize == 3) v = *(uint32_t *) (instr+1);
+				//unsigned int v = 0;
+				//if (argsize == 1) v = *(uint8_t *) (instr+1);
+				//else if (argsize == 2) v = *(uint16_t *) (instr+1);
+				//else if (argsize == 3) v = *(uint32_t *) (instr+1);
 				
-				instr += 1
-					+ (argsize > 0 ? 1 << (argsize-1) : 0)
-					+ (op == OP_PUSHSTR || op == OP_START ? v : 0);
-			}
-			flipt_globalNamespace_values[i] = (int) (globalFunctionSpace + globalFunctionSpace_top);
+				//instr += 1
+					//+ (argsize > 0 ? 1 << (argsize-1) : 0)
+					//+ (op == OP_STRING || op == OP_START ? v : 0);
+			//}
+			//flipt_globalNamespace_values[i] = (int) (globalFunctionSpace + globalFunctionSpace_top);
 			
-			for (uint8_t *i = start; i < instr; i++) {
-				globalFunctionSpace[globalFunctionSpace_top++] = *i;
-			}
+			//for (uint8_t *i = start; i < instr; i++) {
+				//globalFunctionSpace[globalFunctionSpace_top++] = *i;
+			//}
 			
-			globalFunctionSpace[globalFunctionSpace_top++] = OP_END;
-		}
-	}
+			//globalFunctionSpace[globalFunctionSpace_top++] = OP_END;
+		//}
+	//}
 }
 
-void runCommand(char *command) {
-	uint8_t compiled[128];
+char fliptNameIndex[128] = {0};
 
-	flipt_compile(command, (void *) compiled);
+void runCommand(char *command) {
+	uint8_t compiled[256];
+
+	flipt_compile(command, compiled, fliptNameIndex);
+	
+	//flipt_printBytecode(compiled);
 	int stack[256];
 	int *stackpointer = (int*)stack;
-	flipt_interpret(compiled, &stackpointer);
+	flipt_interpret(compiled, &stackpointer, NULL);
 	
-	//kterm_print("= ");
-	//for (int i = 0; i < 256; i++) {
-		//kterm_printf("%i, ", stack[i]);
-	//}
+	kterm_newlineSoft();
+	kterm_print("= ");
+	for (int *i = stack; i < stackpointer; i++) {
+		kterm_printf("%i, ", *i);
+	}
 	
 	cacheFliptFunctions(compiled, 128);
 }
@@ -141,6 +154,7 @@ void runCommand(char *command) {
 void kterm_print1(char);
 
 void ktermPrint1Int(int x) {
+	//asm volatile ("hlt");
 	kterm_print1(x & 0xff);
 }
 
@@ -161,12 +175,11 @@ void kernel_main(multiboot_info_t* mbd, unsigned int magic) {
 		*writeto++ = mmmt->type;
 		flipt_memorymapStorage[0]++;
 	}
-	flipt_external("memterm", (int) flipt_memorymapStorage);
+	//flipt_external("memterm", (int) flipt_memorymapStorage);
 
     if(X86_OK != x86_pc_init()) kernelpanic("Kernel initialisation failed");
 		
-	kterm_print("\eb4\efe");
-	kterm_clear();
+	kterm_print("\eB1\eFe\eJ");
 	
     kterm_printf("systemTick initialised to %i hz\n\n", SYSTEM_TICKS_PER_SEC);
 	
@@ -176,12 +189,14 @@ void kernel_main(multiboot_info_t* mbd, unsigned int magic) {
 
     kterm_print("type commands in the prompt below.\n\n");
     
-    //flipt_setupOpNames(flipt_opNames);
-    flipt_setOutputFunction(ktermPrint1Int);
+    //flipt_setOutputFunction(ktermPrint1Int);
     
-	runCommand("((..)(.)??):print");
-	runCommand("(0|(..)(..10%48+|10/)??#):tostring");
-
+	//runCommand("((..)(.)??#):print");
+	//runCommand("(0|(..)(..10%48+|10/)??#):tostring");
+	
+	// {..256>}{27.71.1+...}??#
+	// {..}{.}??#
+	
 	while (1) {
 		kprompt_prompt(runCommand);
 	}

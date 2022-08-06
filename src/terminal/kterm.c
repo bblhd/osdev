@@ -77,17 +77,17 @@ void kterm_print1(unsigned char c) {
 			kterm_glyph(c);
 		}
 	} else if (printState == ESCAPE) {
-		if (c == 'g') {
+		if (c == 'G') {
 			printState = GLYPH;
-		} else if (c == 'f') {
+		} else if (c == 'F') {
 			printState = FG;
-		} else if (c == 'b') {
+		} else if (c == 'B') {
 			printState = BG;
-		} else if (c == 'j') {
+		} else if (c == 'J') {
 			kterm_clear();
 			column = 0;
 			printState = BASE;
-		} else if (c == 'i') {
+		} else if (c == 'I') {
 			colour ^= 0b10000000;
 			printState = BASE;
 		} else {

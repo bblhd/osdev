@@ -3,9 +3,11 @@
 void *memcpy(void *dest, const void *src, size_t n) {
     uint8_t *d = dest;
     const uint8_t *s = src;
-
-    while(n--) *d++ = *s++;
-
+	if (d < s) {
+	    while(n--) *d++ = *s++;
+	} else {
+	    while(n--) d[n] = s[n];
+	}
     return dest;
 }
 
@@ -69,5 +71,4 @@ int streqn(char *a, char *b, int n) {
 	while (a[i] != '\0' && a[i] == b[i] && i < n-1) i++;
 	return (a[i] == '\0' && b[i] == '\0') || i == n-1;
 }
-
 
