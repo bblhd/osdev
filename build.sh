@@ -4,6 +4,7 @@ BUILDDIR="build"
 BINNAME="$BUILDDIR/out.bin"
 ISONAME="$BUILDDIR/osdev.iso"
 
+NASM_FILES=
 GAS_FILES=
 C_FILES=
 INCLUDE_SUBSOURCES=
@@ -15,6 +16,8 @@ for dir in src/*; do
 		    if [[ -f $file ]]; then
 				if [[ $file == *.s ]]; then
 					GAS_FILES="$GAS_FILES $file"
+				elif [[ $file == *.asm ]]; then
+					NASM_FILES="$NASM_FILES $file"
 				elif [[ $file == *.c ]]; then
 					C_FILES="$C_FILES $file"
 				fi
@@ -79,6 +82,7 @@ function compile_fileset() {
 	done
 }
 
+compile_fileset nasm "nasm -f elf" "$NASM_FILES"
 compile_fileset gnu-asm "i686-elf-gcc -c -x assembler-with-cpp" "$GAS_FILES"
 compile_fileset c "i686-elf-gcc -c $CFLAGS $INCLUDE_SUBSOURCES" "$C_FILES"
 

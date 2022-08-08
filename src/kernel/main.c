@@ -40,6 +40,14 @@ void sys_other_handler(x86_iframe_t* frame){
 	kterm_printf("IRQ %i\n", frame->vector-32);
 }
 
+void jump_usermode();
+void test_user_function() {
+	kterm_printf("Usermode\n");
+	asm volatile ("cli");
+}
+
+void *get_esp(void);
+void *kernelGlobalStackPointer;
 
 int x86_pc_init() {
     gdt_install_flat();
@@ -98,38 +106,6 @@ void flipt_printBytecode(uint8_t *compiled) {
 	}
 }
 
-//uint8_t globalFunctionSpace[512];
-//int globalFunctionSpace_top = 0;
-
-void cacheFliptFunctions(uint8_t *program, int len) {
-	//for (int i = flipt_globalNamespace_top-1; i >= 0; i--) {
-		//uint8_t *start = (uint8_t *) (flipt_globalNamespace_values[i]);
-		//if (start >= program && start < program + len) {
-			//uint8_t *instr = start;
-			//while (*instr != OP_END) {
-				//uint8_t op = *instr & 0b111111;
-				//uint8_t argsize = *instr >> 6;
-				
-				//unsigned int v = 0;
-				//if (argsize == 1) v = *(uint8_t *) (instr+1);
-				//else if (argsize == 2) v = *(uint16_t *) (instr+1);
-				//else if (argsize == 3) v = *(uint32_t *) (instr+1);
-				
-				//instr += 1
-					//+ (argsize > 0 ? 1 << (argsize-1) : 0)
-					//+ (op == OP_STRING || op == OP_START ? v : 0);
-			//}
-			//flipt_globalNamespace_values[i] = (int) (globalFunctionSpace + globalFunctionSpace_top);
-			
-			//for (uint8_t *i = start; i < instr; i++) {
-				//globalFunctionSpace[globalFunctionSpace_top++] = *i;
-			//}
-			
-			//globalFunctionSpace[globalFunctionSpace_top++] = OP_END;
-		//}
-	//}
-}
-
 char fliptNameIndex[128] = {0};
 
 void runCommand(char *command) {
@@ -147,8 +123,7 @@ void runCommand(char *command) {
 	for (int *i = stack; i < stackpointer; i++) {
 		kterm_printf("%i, ", *i);
 	}
-	
-	cacheFliptFunctions(compiled, 128);
+	//jump_usermode();
 }
 
 void kterm_print1(char);
@@ -161,6 +136,8 @@ void ktermPrint1Int(int x) {
 int flipt_memorymapStorage[96];
 
 void kernel_main(multiboot_info_t* mbd, unsigned int magic) {
+	kernelGlobalStackPointer = get_esp();
+	
 	if(magic != MULTIBOOT_BOOTLOADER_MAGIC) kernelpanic("Multiboot magic number bad");
 	if(!(mbd->flags >> 6 & 0x1)) kernelpanic("Multiboot header bad");
 	
