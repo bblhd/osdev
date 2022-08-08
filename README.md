@@ -23,9 +23,10 @@ Replace `<target>` with either `iso`, `qemu`, or the device file name.
 `iso` will only make the iso file, wheras `qemu` will also run it in qemu.
 If you use a device file (for example `/dev/sdb`), it will use dd to write the iso to the specified device.
 
-Requirements
+Requirements (for building)
 ---
 * i686-elf-gcc
+* nasm
 * grub-mkrescue
 * dd, sudo, other normal utilities
 

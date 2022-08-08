@@ -1,4 +1,4 @@
-CFLAGS="-std=gnu99 -ffreestanding -O2 -Wall -Wextra -Werror -Wno-parentheses -Wno-trigraphs -Wno-unused-parameter -Wno-unused-but-set-variable -Wno-unused-variable -Wno-sign-compare"
+CFLAGS="-std=gnu99 -ffreestanding -O2 -Wall -Wextra -Werror -Wno-parentheses -Wno-trigraphs"
 LDFLAGS="-O2 -nostdlib"
 BUILDDIR="build"
 BINNAME="$BUILDDIR/out.bin"
@@ -10,6 +10,7 @@ C_FILES=
 INCLUDE_SUBSOURCES=
 INCLUDE_DIRS=
 
+# finds the paths of all source files
 for dir in src/*; do
     if [[ -d $dir ]]; then
 		for file in $dir/*; do
@@ -32,21 +33,42 @@ done
 
 #echo "include sources:$INCLUDE_SUBSOURCES"
 
-#if [ ! -f "src/flipt/flipt_opcodes.c" ] || [ "src/flipt/flipt_opgen.lua" -nt "src/flipt/flipt_opcodes.c" ]; then
-	#echo -ne "\033[96m[generating flipt files]\033[0m lua src/flipt/flipt_opgen.lua\n"
-	#cd src/flipt
-	#lua5.2 flipt_opgen.lua
-	#cd ../..
-#fi
+# makes script recompile C files whose headers have changed
+for file in $C_FILES; do
+	ofile="$BUILDDIR/$(basename $file | sed 's/\./_/g').o"
+	if [ -f "$ofile" ]; then
+		oldHeaders="no"
+		
+		headerFiles=$(grep "^#include" $file | sed 's/^#include [<"]//' | sed 's/[>"]$//')
+		
+		for hfile in $headerFiles; do
+			for dir in $INCLUDE_DIRS; do
+				if [ -f "$dir/$hfile" ]; then
+					hfile="$dir/$hfile"
+					break
+				fi
+			done
+			if [ "$hfile" -nt "$ofile" ]; then
+				oldHeaders="yes"
+				break
+			fi
+		done
+		
+		if [ $oldHeaders == "yes" ]; then
+			rm "$ofile"
+		fi
+	fi
+done
 
 if [ ! -d "$BUILDDIR" ]; then
 	mkdir "$BUILDDIR"
 fi
 
+compiledNew="no"
+FAILED="no"
 O_FILES=
 
-FAILED="no"
-
+# compiles all files in a list that have changed scince last compile
 function compile_fileset() {
 	name=$1
 	compiler=$2
@@ -54,29 +76,12 @@ function compile_fileset() {
 	for file in $filelist; do
 		ofile="$BUILDDIR/$(basename $file | sed 's/\./_/g').o"
 		
-		oldHeaders="no"
-		if [[ $file == *.c ]]; then
-			headerFiles=$(grep "^#include" $file | sed 's/^#include [<"]//' | sed 's/[>"]$//')
-			
-			for hfile in $headerFiles; do
-				for dir in $INCLUDE_DIRS; do
-					if [ -f "$dir/$hfile" ]; then
-						hfile="$dir/$hfile"
-						break
-					fi
-				done
-				if [ -f "$ofile" ] && [ "$hfile" -nt "$ofile" ]; then
-					oldHeaders="yes"
-					break
-				fi
-			done
-		fi
-		
-		if [ ! -f "$ofile" ] || [ "$file" -nt "$ofile" ] || [ $oldHeaders == "yes" ]; then
+		if [ ! -f "$ofile" ] || [ "$file" -nt "$ofile" ]; then
 			echo -ne "\033[94m[compiling $name]\033[0m $file -> $ofile\n"
 			if ! $compiler "$file" -o "$ofile"; then
 				FAILED="yes"
 			fi
+			compiledNew="yes"
 		fi
 		O_FILES="$O_FILES $ofile"
 	done
@@ -91,6 +96,7 @@ if [ $FAILED == "yes" ]; then
 	exit
 fi
 
+# removes compiled files of source files that have been deleted
 for buildofile in $BUILDDIR/*.o; do
 	matchexists="no"
 	for ofile in $O_FILES; do
@@ -104,14 +110,8 @@ for buildofile in $BUILDDIR/*.o; do
 	fi
 done
 
-shouldlink="no"
-for file in $O_FILES; do
-	if [ ! -f "$BINNAME" ] || [ "$file" -nt "$BINNAME" ]; then
-		shouldlink="yes"
-	fi
-done
-
-if [ $shouldlink == "yes" ]; then
+# links all compiled files if any files were recently compiled
+if [ ! -f "$BINNAME" ] || [ $compiledNew == "yes" ]; then
 	echo -ne "\033[95m[linking]\033[0m object files -> $BINNAME\n"
 	if ! i686-elf-ld -T linker.ld $LDFLAGS -o $BINNAME $O_FILES; then
 		FAILED="yes"
@@ -127,6 +127,7 @@ fi
 FINISH_MODE="$1"
 
 if [ -n FINISH_MODE ]; then
+	# make new iso if bin file was recently linked
 	if [ ! -f "$ISONAME" ] || [ "$BINNAME" -nt "$ISONAME" ]; then
 		echo -ne "\033[91m[making iso]\033[0m $BINNAME -> $ISONAME\n"
 	

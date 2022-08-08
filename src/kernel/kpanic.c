@@ -28,8 +28,8 @@ void kernelpanic_ultos(unsigned long num, int base, char *out, int max) {
 uint16_t *kernelpanic_buffer = (uint16_t *) 0xB8000;
 unsigned int kernelpanic_width = 80;
 unsigned int kernelpanic_height = 25;
-int kernelpanic_column = 0;
-int kernelpanic_row = 0;
+unsigned int kernelpanic_column = 0;
+unsigned int kernelpanic_row = 0;
 
 uint16_t kernelpanic_entry(unsigned char c, uint8_t bg, uint8_t fg) {
 	return c | ((fg & 0b1111) << 8) | ((bg & 0b111) << 12);
@@ -55,7 +55,7 @@ int kernelpanic_debugIndex = 0;
 
 void kernelpanic_debug1() {
 	kernelpanic_debugIndex = 0;
-	for (int i = 0; i < kernelpanic_width * kernelpanic_height; i++) {
+	for (unsigned int i = 0; i < kernelpanic_width * kernelpanic_height; i++) {
 		kernelpanic_buffer[i] = kernelpanic_entry(' ', 4, 15);
 	}
 	kernelpanic_print("Kernel debug time, woooooo:");
@@ -81,7 +81,7 @@ void kernelpanic_debug3() {
 
 
 void kernelpanic(char *message) {
-	for (int i = 0; i < kernelpanic_width * kernelpanic_height; i++) {
+	for (unsigned int i = 0; i < kernelpanic_width * kernelpanic_height; i++) {
 		kernelpanic_buffer[i] = kernelpanic_entry(' ', 4, 15);
 	}
 	kernelpanic_print("Serious unrecoverable error, the program responsible says:");

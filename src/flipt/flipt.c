@@ -20,7 +20,6 @@ void writeSingleWord(uint8_t **out, uint32_t w) {
 }
 
 void writeExtendedOp(uint8_t **out, uint8_t opcode, uint32_t value) {
-	uint8_t length;
 	if (value < 0b1100) {
 		writeSingleByte(out, 0b10000000 | ((value & 0b1111) << 3) | opcode & 0b111); //short form
 	} else if (value < 1 << 8) {

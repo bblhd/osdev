@@ -4,8 +4,6 @@
 #include <stddef.h>
 #include <stdint.h>
 
-static uint64_t ticks = 0;
-
 typedef struct x86_32_iframe {
     uint32_t di, si, bp, sp, bx, dx, cx, ax; 
     uint32_t ds, es, fs, gs;                        

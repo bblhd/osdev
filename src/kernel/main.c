@@ -17,21 +17,25 @@ void kernelpanic(char *message);
 #define X86_OK 0
 #define APP_PRIORITY 16
 
-#define IDLE_STACK_SIZE_BYTES 1024*32
-#define APP_STACK_SIZE 1024*32 
+//#define IDLE_STACK_SIZE_BYTES 1024*32
+//#define APP_STACK_SIZE 1024*32 
 
-static uint8_t idle_thread_stack[IDLE_STACK_SIZE_BYTES];
-static uint8_t app_stack[APP_STACK_SIZE];
+//static uint8_t idle_thread_stack[IDLE_STACK_SIZE_BYTES];
+//static uint8_t app_stack[APP_STACK_SIZE];
+
+#define DISREGARD(p) (void)(p)
 
 int systemTick = 0;
 
 void sys_tick_handler(x86_iframe_t* frame) {
+	DISREGARD(frame);
 	systemTick++;
 	pic_send_EOI(IRQ_PIT);
 }
 
 void keyboard_sendKeyEvent(uint8_t scancode);
 void sys_key_handler(x86_iframe_t* frame){
+	DISREGARD(frame);
 	//scancode https://wiki.osdev.org/PS/2_Keyboard
 	keyboard_sendKeyEvent(in8(0x60));
 }
