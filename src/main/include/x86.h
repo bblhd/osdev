@@ -11,10 +11,10 @@ typedef struct x86_32_iframe {
     uint32_t err_code;                                
     uint32_t ip, cs, flags;                            
     uint32_t user_sp, user_ss;                          
-} x86_iframe_t ;
+} x86_iframe_t;
 
-void gdt_install_flat(void);    
-void setup_idt(void);
+#define plat_reboot() out8(0x64, 0xFE)
+#define plat_hide_cursor() out16(0x03D4,0x200A)
 
 static inline void out8(uint16_t port, uint8_t value) {
     asm volatile ("outb %[value], %[port]" :: [port] "d"(port), [value] "a"(value));

@@ -59,7 +59,7 @@ struct gdt_ptr gdt_p;
 
 extern void gdt_flush();
 void flush_tss();
-extern void *kernelGlobalStackPointer;
+void *getStackTop();
 
 typedef _Bool bool;
 
@@ -122,7 +122,7 @@ void gdt_install_flat() {
 	}
 	
 	tssEntry.ss0  = 0;  // Set the kernel stack segment.
-	tssEntry.esp0 = (uint32_t) kernelGlobalStackPointer; // Set the kernel stack pointer.
+	tssEntry.esp0 = (uint32_t) getStackTop(); // Set the kernel stack pointer.
 	//note that CS is loaded from the IDT entry and should be the regular kernel code segment
 	
 	flush_tss();

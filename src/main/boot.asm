@@ -7,16 +7,21 @@ MAGIC: equ 0x1BADB002       ; 'magic number' lets bootloader find the header
 CHECKSUM: equ -(MAGIC + FLAGS) ; checksum of above, to prove we are multiboot
 
 section .multiboot
-align 4
-dd MAGIC
-dd FLAGS
-dd CHECKSUM
+	align 4
+	dd MAGIC
+	dd FLAGS
+	dd CHECKSUM
 
 section .bss
-resb 16384  ; 16K stack
-sys_stack_top:
+	resb 16384  ; 16K stack
+	sys_stack_top:
 
 section .text
+
+global getStackTop
+getStackTop:
+	lea eax, sys_stack_top
+ret
 
 extern kernel_main
 

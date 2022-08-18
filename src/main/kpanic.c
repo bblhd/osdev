@@ -90,7 +90,7 @@ void kernelpanic(char *message) {
 	kernelpanic_print(message);
 	kernelpanic_newline();
 	kernelpanic_newline();
-	kernelpanic_print("No one can help you now except yourself, bye.");
+	kernelpanic_print("Take this smiley face as an apology :^)");
 	
 	asm volatile ("cli \n hlt"); //halt
 }

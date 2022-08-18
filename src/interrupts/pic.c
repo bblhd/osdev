@@ -1,4 +1,5 @@
 #include <x86.h>
+#include <pic.h>
 
 #define PIC_MASTER_REG 0x20
 #define PIC_MASTER_IMR 0x21

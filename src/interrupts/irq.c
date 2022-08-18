@@ -1,4 +1,5 @@
-#include <plat.h>
+#include <interrupts.h>
+#include <std.h>
 
 char *exception_messages[] = {
     "Division By Zero",
@@ -38,16 +39,16 @@ char *exception_messages[] = {
     "Reserved"
 };
 
-void kernelpanic(char *message);
-
 void handle_exception(uint32_t vector) {
 	kernelpanic(exception_messages[vector]);
 }
 
+void handle_platform_irq(x86_iframe_t*);
+
 void x86_exception_handler(x86_iframe_t* iframe) {
 	if (iframe->vector <= 31) handle_exception(iframe->vector);
 	else if (iframe->vector <= 47) handle_platform_irq(iframe);
-	//else if (iframe->vector == 0x80);
+	else if (iframe->vector == 0x80);
 	else handle_exception(16);
 }
 
@@ -62,6 +63,8 @@ void handle_platform_irq(x86_iframe_t* frame) {
     if (irq != IRQ_PIT) pic_send_EOI(irq);
 }
 
+typedef void (*IRQHandler)(x86_iframe_t*);
+
 void irq_register_handler(int irq, IRQHandler handler) {
 	irq_routines[irq & 0b1111] = handler;
 }
@@ -70,4 +73,4 @@ void irq_unregister_handler(int irq) {
     irq_routines[irq & 0b1111] = NULL;
 }
 
-//void send_irq
+//void send_irq();
