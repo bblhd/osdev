@@ -38,7 +38,6 @@ static inline uint32_t x86_get_eflags(void) {
         : "=rm" (flags)
         :: "memory"
     );
-
     return flags;
 }
 
@@ -60,8 +59,9 @@ static inline void x86_disable_int(void){
 }
 
 static inline void x86_halt(void){
-    __asm__ volatile(
-		    "cli;"
-		    "hlt");
+	asm volatile(
+		"cli;"
+		"hlt"
+	);
 }
 #endif

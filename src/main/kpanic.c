@@ -44,6 +44,7 @@ void kernelpanic_newline() {
 }
 
 void kernelpanic_print(char *string) {
+	if (string == (char *) 0) return;
 	for (int i = 0; string[i] != '\0'; i++) {
 		kernelpanic_buffer[kernelpanic_row * kernelpanic_width + kernelpanic_column] = kernelpanic_entry(string[i], 4, 15);
 		kernelpanic_column++;
