@@ -1,6 +1,7 @@
 #include <x86.h>
 #include <multiboot.h>
 #include <interrupts.h>
+#include <threads.h>
 #include <pic.h>
 #include <keyboard.h>
 
@@ -11,7 +12,7 @@
 #include <kterm.h>
 #include <test_print.h>
 
-#define SYSTEM_TICKS_PER_SEC 10
+#define SYSTEM_TICKS_PER_SEC 1000
 #define X86_OK 0
 #define APP_PRIORITY 16
 
@@ -41,35 +42,39 @@ int x86_pc_init() {
 	return X86_OK;
 }
 
-void wait(int until) {
-	until = systemTick + until * SYSTEM_TICKS_PER_SEC;
-	while (systemTick < until) asm volatile ("hlt");
-}
-
 struct multiboot_info multibootStorage;
 
 void kterm_print1(char x);
 
-void switch_to_task(void **, void *);
-void *create_task(void (*)(void), void *);
-
-void *get_esp();
-
-uint8_t exampleOtherTaskStack[4096];
-void *taskSwapStackPointer;
-
-void otherTask_main() {
+uint8_t taskA_stack[4096];
+void taskA_main() {
 	while (1) {
-		kterm_print("Task b 1\n");
-		wait(1);
-		switch_to_task(&taskSwapStackPointer, taskSwapStackPointer);
-		kterm_print("Task b 2\n");
-		wait(2);
-		switch_to_task(&taskSwapStackPointer, taskSwapStackPointer);
+		threads_wait(1);
+		kterm_print("a");
 	}
+	threads_close();
 }
 
-void initialise(multiboot_info_t* mbd, unsigned int magic) {
+uint8_t taskB_stack[4096];
+void taskB_main() {
+	while (1) {
+		threads_wait(2);
+		kterm_print("b");
+	}
+	threads_close();
+}
+
+uint8_t taskC_stack[4096];
+void taskC_main() {
+	while (1) {
+		threads_wait(3);
+		kterm_print("c");
+	}
+	threads_close();
+}
+
+
+void kernel_main(multiboot_info_t* mbd, unsigned int magic) {
 	if(magic != MULTIBOOT_BOOTLOADER_MAGIC) kernelpanic("Multiboot magic number bad");
 	if(!(mbd->flags >> 6 & 0x1)) kernelpanic("Multiboot header bad");
 	
@@ -83,33 +88,10 @@ void initialise(multiboot_info_t* mbd, unsigned int magic) {
 	kterm_printf("systemTick initialised to %i hz\n\n", SYSTEM_TICKS_PER_SEC);
 	test_printMemoryMap(&multibootStorage);
 	kterm_print("\nHi, welcome to my WIP operating system.\n\n");
-}
-
-void kernel_main(multiboot_info_t* mbd, unsigned int magic) {
-	initialise(mbd, magic);
 	
-	taskSwapStackPointer = create_task(otherTask_main, (uint8_t *)exampleOtherTaskStack+4096-1);
+	threads_create(taskA_main, taskA_stack+4096-1);
+	threads_create(taskB_main, taskB_stack+4096-1);
+	threads_create(taskC_main, taskC_stack+4096-1);
 	
-	//uint8_t keycode;
-	//while (1) {
-		//while (keyboard_open()) {
-			//keycode = keycodeFromScancode(keyboard_get());
-		    //if (keycode > 0) {
-				//if (keyboard_modifier(MODIFIER_SHIFT) || keyboard_modifier(MODIFIER_CAPS)) {
-					//keycode = keyboard_getCapital(keycode);
-				//}
-				//kterm_print1(keycode);
-			//}
-		//}
-		//asm volatile ("hlt"); //halts to give the cpu a rest
-	//}
-	
-	while (1) {
-		kterm_print("Task a 1\n");
-		wait(1);
-		switch_to_task(&taskSwapStackPointer, taskSwapStackPointer);
-		kterm_print("Task a 2\n");
-		wait(2);
-		switch_to_task(&taskSwapStackPointer, taskSwapStackPointer);
-	}
+	threads_begin();
 }

@@ -82,6 +82,7 @@ void kernelpanic_debug3() {
 
 
 void kernelpanic(char *message) {
+	asm volatile ("cli");
 	for (unsigned int i = 0; i < kernelpanic_width * kernelpanic_height; i++) {
 		kernelpanic_buffer[i] = kernelpanic_entry(' ', 4, 15);
 	}
@@ -93,5 +94,5 @@ void kernelpanic(char *message) {
 	kernelpanic_newline();
 	kernelpanic_print("Take this smiley face as an apology :^)");
 	
-	asm volatile ("cli \n hlt"); //halt
+	asm volatile ("hlt");
 }
