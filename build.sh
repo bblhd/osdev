@@ -15,9 +15,7 @@ for dir in src/*; do
     if [[ -d $dir ]]; then
 		for file in $dir/*; do
 		    if [[ -f $file ]]; then
-				if [[ $file == *.s ]]; then
-					GAS_FILES="$GAS_FILES $file"
-				elif [[ $file == *.asm ]]; then
+				if [[ $file == *.asm ]]; then
 					NASM_FILES="$NASM_FILES $file"
 				elif [[ $file == *.c ]]; then
 					C_FILES="$C_FILES $file"
@@ -88,7 +86,6 @@ function compile_fileset() {
 }
 
 compile_fileset nasm "nasm -f elf" "$NASM_FILES"
-compile_fileset gnu-asm "i686-elf-gcc -c -x assembler-with-cpp" "$GAS_FILES"
 compile_fileset c "i686-elf-gcc -c $CFLAGS $INCLUDE_SUBSOURCES" "$C_FILES"
 
 if [ $FAILED == "yes" ]; then
@@ -97,16 +94,16 @@ if [ $FAILED == "yes" ]; then
 fi
 
 # removes compiled files of source files that have been deleted
-for buildofile in $BUILDDIR/*.o; do
+for builtofile in $BUILDDIR/*.o; do
 	matchexists="no"
 	for ofile in $O_FILES; do
-		if [ "$buildofile" == "$ofile" ]; then
+		if [ "$builtofile" == "$ofile" ]; then
 			matchexists="yes"
 			break
 		fi
 	done
 	if [ $matchexists == "no" ]; then
-		rm "$buildofile"
+		rm "$builtofile"
 	fi
 done
 
@@ -139,7 +136,7 @@ if [ -n FINISH_MODE ]; then
 	
 	if [[ "$FINISH_MODE" == /dev/* ]]; then
 		echo -ne "\033[93m[writing device]\033[0m $ISONAME -> $FINISH_MODE\n"
-		sudo dd if=$ISONAME of=$FINISH_MODE status=progress && sync
+		sudo dd if=$ISONAME of=$FINISH_MODE bs=1M status=progress && sync
 	elif [ "$FINISH_MODE" == "qemu" ]; then
 		echo -ne "\033[93m[qemu]\033[0m cdrom $ISONAME\n"
 		qemu-system-i386 -cdrom "$ISONAME"

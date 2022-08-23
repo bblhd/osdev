@@ -49,8 +49,20 @@ void kterm_print1(char x);
 uint8_t taskA_stack[4096];
 void taskA_main() {
 	while (1) {
-		threads_wait(1);
-		kterm_print("a");
+		threads_wait(100);
+		while (keyboard_open()) {
+			unsigned char keycode = keycodeFromScancode(keyboard_get());
+			if (keyboard_modifier(MODIFIER_SHIFT) || keyboard_modifier(MODIFIER_CAPS)) {
+				keycode = keyboard_getCapital(keycode);
+			}
+			if (keycode == '`') {
+				kterm_print("\nrebooting");
+				plat_reboot();
+				threads_close();
+			} else if (keycode > 0) {
+				kterm_print1(keycode);
+			}
+		}
 	}
 	threads_close();
 }
@@ -58,18 +70,10 @@ void taskA_main() {
 uint8_t taskB_stack[4096];
 void taskB_main() {
 	while (1) {
-		threads_wait(2);
-		kterm_print("b");
+		kterm_print("\nbing bong");
+		threads_wait(5000);
 	}
-	threads_close();
-}
-
-uint8_t taskC_stack[4096];
-void taskC_main() {
-	while (1) {
-		threads_wait(3);
-		kterm_print("c");
-	}
+	kterm_print("\nthread b closed");
 	threads_close();
 }
 
@@ -91,7 +95,6 @@ void kernel_main(multiboot_info_t* mbd, unsigned int magic) {
 	
 	threads_create(taskA_main, taskA_stack+4096-1);
 	threads_create(taskB_main, taskB_stack+4096-1);
-	threads_create(taskC_main, taskC_stack+4096-1);
 	
 	threads_begin();
 }

@@ -3,7 +3,7 @@
 #include <stdarg.h>
 
 #include <kterm.h>
-#include <plat.h>
+#include <x86.h>
 #include <string.h>
 
 uint16_t * const vga_buffer = (uint16_t *) 0xB8000;

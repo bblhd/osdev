@@ -54,8 +54,6 @@ global threads_wait
 threads_wait:
 	mov ecx, [systemTick]
 	mov eax, [esp + 4]
-	mov edx, 1000
-	mul edx
 	add eax, ecx
 	loop:
 		push eax
