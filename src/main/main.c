@@ -1,7 +1,7 @@
 #include <x86.h>
 #include <multiboot.h>
 #include <interrupts.h>
-#include <threads.h>
+#include <tasks.h>
 #include <pic.h>
 #include <keyboard.h>
 
@@ -46,37 +46,19 @@ struct multiboot_info multibootStorage;
 
 void kterm_print1(char x);
 
-uint8_t taskA_stack[4096];
-void taskA_main() {
-	while (1) {
-		threads_wait(100);
-		while (keyboard_open()) {
-			unsigned char keycode = keycodeFromScancode(keyboard_get());
-			if (keyboard_modifier(MODIFIER_SHIFT) || keyboard_modifier(MODIFIER_CAPS)) {
-				keycode = keyboard_getCapital(keycode);
-			}
-			if (keycode == '`') {
-				kterm_print("\nrebooting");
-				plat_reboot();
-				threads_close();
-			} else if (keycode > 0) {
-				kterm_print1(keycode);
-			}
-		}
-	}
-	threads_close();
-}
 
+struct Task taskB;
 uint8_t taskB_stack[4096];
 void taskB_main() {
 	while (1) {
 		kterm_print("\nbing bong");
-		threads_wait(5000);
+		task_wait(5000);
 	}
 	kterm_print("\nthread b closed");
-	threads_close();
+	task_close();
 }
 
+struct Task mainTask;
 
 void kernel_main(multiboot_info_t* mbd, unsigned int magic) {
 	if(magic != MULTIBOOT_BOOTLOADER_MAGIC) kernelpanic("Multiboot magic number bad");
@@ -93,8 +75,26 @@ void kernel_main(multiboot_info_t* mbd, unsigned int magic) {
 	test_printMemoryMap(&multibootStorage);
 	kterm_print("\nHi, welcome to my WIP operating system.\n\n");
 	
-	threads_create(taskA_main, taskA_stack+4096-1);
-	threads_create(taskB_main, taskB_stack+4096-1);
+	tasks_begin(&mainTask);
 	
-	threads_begin();
+	task_create(&taskB, taskB_main, taskB_stack+4096-1);
+	
+	while (1) {
+		task_wait(100);
+		while (keyboard_open()) {
+			unsigned char keycode = keycodeFromScancode(keyboard_get());
+			if (keyboard_modifier(MODIFIER_SHIFT) || keyboard_modifier(MODIFIER_CAPS)) {
+				keycode = keyboard_getCapital(keycode);
+			}
+			if (keycode == '`') {
+				kterm_print("\nrebooting");
+				plat_reboot();
+				task_close();
+			} else if (keycode > 0) {
+				kterm_print1(keycode);
+			}
+		}
+	}
+	
+	task_close();
 }

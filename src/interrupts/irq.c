@@ -39,17 +39,27 @@ char *exception_messages[] = {
     "Reserved"
 };
 
-void handle_exception(uint32_t vector) {
-	kernelpanic(exception_messages[vector]);
-}
-
-void handle_platform_irq(x86_iframe_t*);
+void handle_exception(x86_iframe_t *);
+void handle_platform_irq(x86_iframe_t *);
+void handle_systemcall(x86_iframe_t *);
 
 void x86_exception_handler(x86_iframe_t* iframe) {
-	if (iframe->vector <= 31) handle_exception(iframe->vector);
+	if (iframe->vector <= 31) handle_exception(iframe);
 	else if (iframe->vector <= 47) handle_platform_irq(iframe);
-	else if (iframe->vector == 0x80);
-	else handle_exception(16);
+	else if (iframe->vector == 0x80) handle_systemcall(iframe);
+	else kernelpanic(exception_messages[16]);
+}
+
+void handle_exception(x86_iframe_t* iframe) {
+	kernelpanic(exception_messages[iframe->vector]);
+}
+
+void handle_systemcall(x86_iframe_t* iframe) {
+	DISREGARD(iframe);
+	//switch (iframe->ax) {
+		//case 0x01:
+			//break;
+	//};
 }
 
 IRQHandler irq_routines[16];

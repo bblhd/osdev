@@ -1,6 +1,6 @@
 
 global taskSwitch
-; void saveTask(void *);
+; void taskSwitch(void *);
 taskSwitch:
 	cli
 		push ebx
@@ -17,19 +17,6 @@ taskSwitch:
 	sti
 ret
 
-global gotoTask
-; void gotoTask(void *);
-gotoTask:
-	cli
-			mov esp, [esp+4] ; set new stack pointer
-			; todo: adjust ESP0 (stack top) in TSS
-			; todo: add support for paging or virtual memory or whatever
-		pop ebp
-		pop edi
-		pop esi
-		pop ebx
-	sti
-ret
 
 global initialiseTaskStack
 ; void *initialiseTaskStack(void (*)(void), void *);
@@ -39,25 +26,27 @@ initialiseTaskStack:
 	mov eax, [esp+2*4]
 	xchg esp, eax
 		push ecx
+		
+		mov ecx, esp
 		push 0
 		push 0
 		push 0
-		push esp
+		push ecx
 	xchg esp, eax
 ret
 
 extern systemTick
-extern threads_yield
-global threads_wait
- ;void threads_wait(int);
- ;pushes dummy values onto this stack so it can be switched to
-threads_wait:
+extern task_yield
+global task_wait
+; void threads_wait(int);
+; waits using yield to save processing
+task_wait:
 	mov ecx, [systemTick]
 	mov eax, [esp + 4]
 	add eax, ecx
 	loop:
 		push eax
-			call threads_yield
+			call task_yield
 		pop eax
 		hlt
 		mov ecx, [systemTick]
