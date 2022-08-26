@@ -1,21 +1,12 @@
 #include <stdint.h>
 
 struct gdt_entry {
-	unsigned int limit_low              : 16;
-	unsigned int base_low               : 24;
-	unsigned int accessed               :  1;
-	unsigned int read_write             :  1; // readable for code, writable for data
-	unsigned int conforming_expand_down :  1; // conforming for code, expand down for data
-	unsigned int code                   :  1; // 1 for code, 0 for data
-	unsigned int code_data_segment      :  1; // should be 1 for everything but TSS and LDT
-	unsigned int DPL                    :  2; // privilege level
-	unsigned int present                :  1;
-	unsigned int limit_high             :  4;
-	unsigned int available              :  1; // only used in software; has no effect on hardware
-	unsigned int long_mode              :  1;
-	unsigned int big                    :  1; // 32-bit opcodes for code, uint32_t stack for data
-	unsigned int granularity            :  1; // 1 to use 4k page addressing, 0 for byte addressing
-	unsigned int base_high              :  8;
+	unsigned int limit_low : 16;
+	unsigned int base_low : 24;
+	unsigned int flags_low : 8;
+	unsigned int limit_high : 4;
+	unsigned int flags_high : 4;
+	unsigned int base_high : 8;
 } __attribute__((packed));
 
 struct gdt_ptr {
@@ -54,48 +45,50 @@ struct tss_entry {
 	uint16_t iomap_base;
 } __attribute__((packed));
 
-struct gdt_entry gdt[6];
-struct gdt_ptr gdt_p;
+#define ACCESSED     1
+#define CODE_DATA    (1 << 4) // Descriptor type (0 for system, 1 for code/data)
+#define PRESENT      (1 << 7) // Present
+#define AVAILABLE    (1 << 8) // Available for system use
+#define _32BIT       (0b10 << 9)
+#define LARGE_GRAIN  (1 << 11) // Granularity (0 for 1B - 1MB, 1 for 4KB - 4GB)
+#define RING0        0
+#define RING3        (0b11 << 5)
+ 
+#define DATA_RD         0b0000 // Read-Only
+#define DATA_RDWR       0b0010 // Read/Write
+#define DATA_RDEXPD     0b0100 // Read-Only, expand-down
+#define DATA_RDWREXPD   0b0110 // Read/Write, expand-down
+#define CODE_EX         0b1000 // Execute-Only
+#define CODE_EXRD       0b1010 // Execute/Read
+#define CODE_EXC        0b1100 // Execute-Only, conforming
+#define CODE_EXRDC      0b1110 // Execute/Read, conforming
 
-extern void gdt_flush();
-void flush_tss();
-void *getStackTop();
-
-typedef _Bool bool;
-
-void init_gdt_entry( int index, unsigned long base, unsigned long limit, uint16_t flags, unsigned char priviledge) {
-    gdt[index].base_low = base;
-    gdt[index].base_high = base >> 24;
-    
-    gdt[index].limit_low = limit;
-    gdt[index].limit_high = limit >> 16;
-    
-    gdt[index].accessed = flags;
-    flags >>= 1;
-    gdt[index].read_write = flags;
-    flags >>= 1;
-    gdt[index].conforming_expand_down = flags;
-    flags >>= 1;
-    gdt[index].code = flags;
-    flags >>= 1;
-    gdt[index].code_data_segment = flags;
-    flags >>= 1;
-    
-    gdt[index].DPL = priviledge;
-    gdt[index].present = 1;
-    
-    gdt[index].available = flags;
-    flags >>= 1;
-    gdt[index].long_mode = flags;
-    flags >>= 1;
-    gdt[index].big = flags;
-    flags >>= 1;
-    gdt[index].granularity = flags;
-    flags >>= 1;
+#define GDT_NORMAL  CODE_DATA | PRESENT | _32BIT | LARGE_GRAIN
+#define GDT_TSS     PRESENT | CODE_EX | ACCESSED
+ 
+void create_descriptor(struct gdt_entry *descriptor, uint32_t base, uint32_t limit, uint16_t flags) {
+	descriptor->base_low = base & 0xFFFFFF;
+	descriptor->base_high = base >> 24 & 0xFF;
+	
+	descriptor->limit_low = limit & 0xFFFF;
+	descriptor->limit_high = limit >> 16 & 0xF;
+	
+	descriptor->flags_low = flags & 0xFF;
+	descriptor->flags_high = flags >> 8 & 0xF;
 }
 
 // Note: some of the GDT entry struct field names may not match perfectly to the TSS entries.
 struct tss_entry tssEntry;
+
+struct gdt_entry gdt[6];
+struct gdt_ptr gdt_p;
+
+void *get_esp();
+void *get_ss();
+void *getStackTop();
+
+void gdt_flush();
+void tss_flush();
 
 void set_kernel_stack(uint32_t stack) { // Used when an interrupt occurs
 	tssEntry.esp0 = stack;
@@ -105,12 +98,12 @@ void gdt_install_flat() {
 	gdt_p.base = (unsigned int) gdt;
 	gdt_p.limit = (sizeof(struct gdt_entry) * 6) - 1;
 	
-	init_gdt_entry(0, 0, 0, 0, 0); // Null
-	init_gdt_entry(1, 0, 0xFFFFF, 0b110011010, 0); // ring0 Code
-	init_gdt_entry(2, 0, 0xFFFFF, 0b110010010, 0); // ring0 Data
-	init_gdt_entry(3, 0, 0xFFFFF, 0b110111010, 3); // ring3 Code 
-	init_gdt_entry(4, 0, 0xFFFFF, 0b110111010, 3); // ring3 Data
-	init_gdt_entry(5, (uint32_t) &tssEntry, sizeof(tssEntry), 0b000001001, 0); // tss
+	create_descriptor(&gdt[0], 0, 0, 0);
+	create_descriptor(&gdt[1], 0, 0xFFFFF, GDT_NORMAL | RING0 | CODE_EXRD);
+	create_descriptor(&gdt[2], 0, 0xFFFFF, GDT_NORMAL | RING0 | DATA_RDWR);
+	create_descriptor(&gdt[3], 0, 0xFFFFF, GDT_NORMAL | RING3 | CODE_EXRD);
+	create_descriptor(&gdt[4], 0, 0xFFFFF, GDT_NORMAL | RING3 | DATA_RDWR);
+	create_descriptor(&gdt[5], (uint32_t) &tssEntry, sizeof(struct tss_entry), GDT_TSS);
 	
 	gdt_flush();
 	
@@ -121,9 +114,9 @@ void gdt_install_flat() {
 		while (n--) *d++ = 0;
 	}
 	
-	tssEntry.ss0  = 0;  // Set the kernel stack segment.
-	tssEntry.esp0 = (uint32_t) getStackTop(); // Set the kernel stack pointer.
+	tssEntry.ss0 = (uint32_t) 0|(2*8); // Set the kernel stack segment.
+	tssEntry.esp0 = (uint32_t) get_esp(); // Set the kernel stack pointer.
 	//note that CS is loaded from the IDT entry and should be the regular kernel code segment
 	
-	flush_tss();
+	tss_flush();
 }

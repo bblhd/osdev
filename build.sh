@@ -138,7 +138,7 @@ if [ -n FINISH_MODE ]; then
 		echo -ne "\033[93m[writing device]\033[0m $ISONAME -> $FINISH_MODE\n"
 		sudo dd if=$ISONAME of=$FINISH_MODE bs=1M status=progress && sync
 	elif [ "$FINISH_MODE" == "qemu" ]; then
-		echo -ne "\033[93m[qemu]\033[0m cdrom $ISONAME\n"
-		qemu-system-i386 -cdrom "$ISONAME"
+		echo -ne "\033[93m[qemu]\033[0m kernel $BINNAME\n"
+		qemu-system-i386 -kernel "$BINNAME"
 	fi
 fi

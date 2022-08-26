@@ -3,17 +3,20 @@ global taskSwitch
 ; void taskSwitch(void *);
 taskSwitch:
 	cli
+		mov eax, [esp+(1)*4]
+		
 		push ebx
 		push esi
 		push edi
 		push ebp
-			mov esp, [esp+(4+1)*4] ; set new stack pointer
+			mov esp, eax ; set new stack pointer
 			; todo: adjust ESP0 (stack top) in TSS
 			; todo: add support for paging or virtual memory or whatever
 		pop ebp
 		pop edi
 		pop esi
 		pop ebx
+		
 	sti
 ret
 
@@ -26,14 +29,32 @@ initialiseTaskStack:
 	mov eax, [esp+2*4]
 	xchg esp, eax
 		push ecx
-		
 		mov ecx, esp
-		push 0
-		push 0
-		push 0
+		sub ecx, 4
+		
 		push ecx
+		push 0
+		push 0
+		push 0
 	xchg esp, eax
 ret
+
+
+;global taskSwitch
+;taskSwitch:
+	;cli
+		;push ebx
+		;push esi
+		;push edi
+		;push ebp
+			;mov esp, [esp+(4+1)*4] ; set new stack pointer
+		;pop ebp
+		;pop edi
+		;pop esi
+		;pop ebx
+	;sti
+;ret
+
 
 extern systemTick
 extern task_yield

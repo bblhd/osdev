@@ -12,7 +12,7 @@ void setup_idt(void);
 
 void pit_init(uint32_t frequency);
 
-typedef void (*IRQHandler)(x86_iframe_t*);
+typedef void (*IRQHandler)(struct x86_iframe*);
 void irq_register_handler(int id, IRQHandler);
 void irq_unregister_handler(int id);
 

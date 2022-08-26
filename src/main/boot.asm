@@ -23,6 +23,12 @@ getStackTop:
 	lea eax, sys_stack_top
 ret
 
+global systemcall
+systemcall:
+	mov eax, [esp + 4]
+	int 0x30
+ret
+
 extern kernel_main
 
 global _start
@@ -38,18 +44,4 @@ _start:
 	hlt
 .Lhang:
 	jmp .Lhang
-
-extern gdt_p
-
-global gdt_flush
-gdt_flush:
-    lgdt [gdt_p]
-    mov ax, 0x10
-    mov ds, ax
-    mov es, ax
-    mov fs, ax
-    mov gs, ax
-    mov ss, ax
-	jmp 0x08:gdt_flush_end
-gdt_flush_end: ret
 

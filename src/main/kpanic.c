@@ -96,3 +96,32 @@ void kernelpanic(char *message) {
 	
 	asm volatile ("hlt");
 }
+void kernelpanicWithNumber(char *message, char *name, unsigned int num) {
+	asm volatile ("cli");
+	for (unsigned int i = 0; i < kernelpanic_width * kernelpanic_height; i++) {
+		kernelpanic_buffer[i] = kernelpanic_entry(' ', 4, 15);
+	}
+	kernelpanic_print("Serious unrecoverable error, the program responsible says:");
+	kernelpanic_newline();
+	kernelpanic_print("  ");
+	kernelpanic_print(message);
+	kernelpanic_newline();
+	kernelpanic_print("  ");
+	kernelpanic_print(name);
+	kernelpanic_print(" = ");
+	char nbuff[33];
+	kernelpanic_ultos(num, 16, nbuff, 33);
+	kernelpanic_print("0x");
+	kernelpanic_print(nbuff);
+	kernelpanic_ultos(num, 10, nbuff, 33);
+	kernelpanic_print(", ");
+	kernelpanic_print(nbuff);
+	kernelpanic_ultos(num, 2, nbuff, 33);
+	kernelpanic_print(", 0b");
+	kernelpanic_print(nbuff);
+	kernelpanic_newline();
+	kernelpanic_newline();
+	kernelpanic_print("Take this smiley face as an apology :^)");
+	
+	asm volatile ("hlt");
+}
