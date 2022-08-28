@@ -36,5 +36,6 @@ Todo
 
 Thanks
 ---
-* The fantastic [Repository](https://github.com/alpn/x86_starterkit) by alpn
+* The fantastic [Repository](https://github.com/alpn/x86_starterkit)
+by [alpn](https://github.com/alpn) which I used as a base for this project
 * The incredible [OSDev.org](https://wiki.osdev.org/) wiki
