@@ -56,16 +56,28 @@ void handle_exception(struct x86_iframe* iframe) {
 	kernelpanicWithNumber(exception_messages[iframe->vector], "error code", iframe->err_code);
 }
 
+
+void kterm_print1(char x);
+
+// 0x0X syatem tasks, 0x1X debuging, 0x2X tasks, 0x3X permissions and allocations
 void handle_systemcall(struct x86_iframe* iframe) {
+	//kterm_printf("systemcall %i\n", iframe->ax);
 	switch (iframe->ax) {
 		case 0x01:
-			kterm_print("\ntest1");
-		break;
-		case 0x02:
-			kterm_print("\ntest2");
-		break;
-		case 0x03:
 			plat_reboot();
+		break;
+		case 0x10:
+			//kterm_print("test2\n");
+			kterm_print1(iframe->bx & 0xFF);
+			//kernelpanicWithNumber("?", "x", iframe->bx);
+		break;
+		case 0x11:
+			kterm_print("test\n");
+		break;
+		case 0x12:
+			//kterm_print("test2\n");
+			kterm_printf("%u", iframe->bx);
+			//kernelpanicWithNumber("?", "x", iframe->bx);
 		break;
 		default:
 		break;

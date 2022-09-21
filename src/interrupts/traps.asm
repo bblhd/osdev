@@ -113,7 +113,7 @@ _idt:
 	    dw 0|(1*8) ; selector
 	    db 0
 	    
-		%if i >= 0x30
+		%if i == 0x30
 			db 0b11101110
 		%else
 			db 0x8e ; present, ring 0, 32-bit interrupt gate

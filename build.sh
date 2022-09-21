@@ -1,4 +1,4 @@
-CFLAGS="-std=gnu99 -ffreestanding -O2 -Wall -Wextra -Werror -Wno-parentheses -Wno-trigraphs"
+CFLAGS="-std=gnu99 -ffreestanding -O2 -Wall -Wextra -Werror -Wno-trigraphs"
 LDFLAGS="-O2 -nostdlib"
 BUILDDIR="build"
 BINNAME="$BUILDDIR/out.bin"

@@ -23,12 +23,6 @@ getStackTop:
 	lea eax, sys_stack_top
 ret
 
-global systemcall
-systemcall:
-	mov eax, [esp + 4]
-	int 0x30
-ret
-
 extern kernel_main
 
 global _start

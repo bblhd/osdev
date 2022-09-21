@@ -1,8 +1,8 @@
 #ifndef X86_H
 #define X86_H
 
-//#include <stddef.h>
 #include <stdint.h>
+#include <std.h>
 
 struct x86_iframe {
     uint32_t di, si, bp, sp, bx, dx, cx, ax;
