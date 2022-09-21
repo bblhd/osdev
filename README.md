@@ -1,13 +1,15 @@
-osdev
+pOSsum
 ===
 
-This is my personal hobbyist operating system, its not very good yet, but I am trying to fix that. 
+This is my personal hobbyist operating system, its not very good yet, but I am trying to fix that.
 
-It might be a bit silly and idiosyncratic sometimes. 
+It is inspired by the operating system plan9 (from bell labs), microkernels, the '[suckless](https://suckless.org/)' community,
+and ideas such as [Permacomputing](https://permacomputing.net/). I hope to create a system that is accessible,
+highly usable in simple ways, and maybe even at times, beautiful.
 
-Also my custom build script may not be very robust, so yeah
-(as in it may not work on your machine).
-You may wonder why I didn't just use make.
+It's more likely going to be a little bit silly.
+
+PS: the name specifically refers to the [Australian possum](https://en.wikipedia.org/wiki/Phalangeriformes), rather than the [American opossum](https://en.wikipedia.org/wiki/Opossum).
 
 Building
 ---
@@ -29,10 +31,6 @@ Requirements (for building)
 * nasm
 * grub-mkrescue
 * dd, sudo, other normal utilities
-
-Todo
----
-* [ ] improve all my lazily written important kernel code
 
 Thanks
 ---
