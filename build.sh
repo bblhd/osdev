@@ -2,7 +2,7 @@ CFLAGS="-std=gnu99 -ffreestanding -O2 -Wall -Wextra -Werror -Wno-trigraphs"
 LDFLAGS="-O2 -nostdlib"
 BUILDDIR="build"
 BINNAME="$BUILDDIR/out.bin"
-ISONAME="$BUILDDIR/osdev.iso"
+ISONAME="$BUILDDIR/possum.iso"
 
 NASM_FILES=
 GAS_FILES=
@@ -15,7 +15,7 @@ for dir in src/*; do
     if [[ -d $dir ]]; then
 		for file in $dir/*; do
 		    if [[ -f $file ]]; then
-				if [[ $file == *.asm ]]; then
+				if [[ $file == *.s ]]; then
 					NASM_FILES="$NASM_FILES $file"
 				elif [[ $file == *.c ]]; then
 					C_FILES="$C_FILES $file"
@@ -125,13 +125,15 @@ FINISH_MODE="$1"
 
 if [ -n FINISH_MODE ]; then
 	# make new iso if bin file was recently linked
-	if [ ! -f "$ISONAME" ] || [ "$BINNAME" -nt "$ISONAME" ]; then
-		echo -ne "\033[91m[making iso]\033[0m $BINNAME -> $ISONAME\n"
-	
-		mkdir -p $BUILDDIR/isodir/boot/grub
-		cp "$BINNAME" $BUILDDIR/isodir/boot/os.bin
-		echo "menuentry \"osdev\" { multiboot /boot/os.bin }" > $BUILDDIR/isodir/boot/grub/grub.cfg
-		2>/dev/null 1>/dev/null grub-mkrescue -o "$ISONAME" $BUILDDIR/isodir
+	if [ "$FINISH_MODE" != "qemu" ]; then
+		if [ ! -f "$ISONAME" ] || [ "$BINNAME" -nt "$ISONAME" ]; then
+			echo -ne "\033[91m[making iso]\033[0m $BINNAME -> $ISONAME\n"
+		
+			mkdir -p $BUILDDIR/isodir/boot/grub
+			cp "$BINNAME" $BUILDDIR/isodir/boot/os.bin
+			echo "menuentry \"possum\" { multiboot /boot/os.bin }" > $BUILDDIR/isodir/boot/grub/grub.cfg
+			2>/dev/null 1>/dev/null grub-mkrescue -o "$ISONAME" $BUILDDIR/isodir
+		fi
 	fi
 	
 	if [[ "$FINISH_MODE" == /dev/* ]]; then

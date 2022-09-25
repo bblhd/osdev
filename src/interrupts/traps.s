@@ -114,9 +114,9 @@ _idt:
 	    db 0
 	    
 		%if i == 0x30
-			db 0b11101110
+			db 0b11101110 ; system call
 		%else
-			db 0x8e ; present, ring 0, 32-bit interrupt gate
+			db 0b10001110 ; present, ring 0, 32-bit interrupt gate
 		%endif
 	    dw 0 ; high 16 bits of ISR offset (_isr#i / 65536)
 		%assign i i+1
