@@ -7,7 +7,7 @@ It is inspired by the operating system plan9 (from bell labs), microkernels, the
 and ideas such as [Permacomputing](https://permacomputing.net/). I hope to create a system that is accessible,
 highly usable in simple ways, and maybe even at times, beautiful.
 
-It's more likely going to be a little bit silly.
+It's more likely going to be a bit silly.
 
 PS: the name specifically refers to the [Australian possum](https://en.wikipedia.org/wiki/Phalangeriformes), rather than the [American opossum](https://en.wikipedia.org/wiki/Opossum).
 
