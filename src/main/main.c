@@ -8,7 +8,8 @@
 #include <string.h>
 #include <math.h>
 
-//#include <term.h>
+#include <physmem.h>
+
 #include <kterm.h>
 #include <test_print.h>
 
@@ -56,6 +57,18 @@ void causeDivisionByZeroError() {
 void kernel_main(multiboot_info_t* mbd, unsigned int magic) {
 	if(magic != MULTIBOOT_BOOTLOADER_MAGIC) kernelpanic("Multiboot magic number bad");
 	if(!(mbd->flags >> 6 & 0x1)) kernelpanic("Multiboot header bad");
+	
+	physmem_init(mbd);
+	void **initialPageTable = physmem_alloc();
+	
+	//we will fill all 1024 entries in the table, mapping 4 megabytes
+	for(size_t i = 0; i < 1024; i++) {
+		// As the address is page aligned, it will always leave 12 bits zeroed.
+		// Those bits are used by the attributes ;)
+		//first_page_table[i] = (i * 0x1000) | 3; // attributes: supervisor level, read/write, present.
+		initialPageTable++;
+	}
+	void *initialPageDirectory = physmem_alloc();
 	
 	memcpy(&multibootStorage, mbd, sizeof(struct multiboot_info));
 	
