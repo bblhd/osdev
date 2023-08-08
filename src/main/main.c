@@ -69,6 +69,7 @@ void kernel_main(multiboot_info_t* mbd, unsigned int magic) {
 		initialPageTable++;
 	}
 	void *initialPageDirectory = physmem_alloc();
+	(void) initialPageDirectory;
 	
 	memcpy(&multibootStorage, mbd, sizeof(struct multiboot_info));
 	

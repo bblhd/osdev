@@ -18,10 +18,10 @@ holeOffset_t holes[MAXHOLES];
 size_t holesTop = 0;
 
 static inline holeOffset_t convertToOffset(void *ptr) {
-	return (holeOffset_t) ((ptr - mainMemoryBase) >> 12)
+	return (holeOffset_t) ((ptr - mainMemoryBase) >> 12);
 }
 static inline void *convertFromOffset(holeOffset_t offset) {
-	return (void *) (mainMemoryBase + (offset << 12))
+	return (void *) (mainMemoryBase + (offset << 12));
 }
 
 static inline size_t roundUp(size_t value, size_t mask) {
@@ -36,7 +36,7 @@ void physmem_init(multiboot_info_t *mbd) {
 		multiboot_memory_map_t *mmmt = (multiboot_memory_map_t *) mbd->mmap_addr;
 		
 		if (mmmt->type == 1 && mmmt->len_low > mainMemoryLimit) {
-			mainMemoryBase = mmmt->addr_low;
+			mainMemoryBase = (void *) mmmt->addr_low;
 			mainMemoryLimit = mmmt->len_low;
 		} 
 	}
